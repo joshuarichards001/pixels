@@ -16,13 +16,16 @@ const colorMap = {
 window.onload = () => {
   const canvas = document.getElementById("canvas");
   const context = canvas.getContext("2d");
+  const colorButtons = document.querySelectorAll(".color-button");
   
   const gridSize = Math.sqrt(tenThousandPixelString.length);
   let pixelSize = 3;
   let offsetX = 0;
   let offsetY = 0;
   let isDragging = false;
+  let isMouseDown = false;
   let lastX, lastY;
+  let selectedColor = "0";
 
   const redraw = () => {
     canvas.width = 300;
@@ -59,6 +62,17 @@ window.onload = () => {
     redraw();
   }
 
+  const turnPixelBlack = (x, y) => {
+    const pixelX = Math.floor((x + offsetX) / pixelSize);
+    const pixelY = Math.floor((y + offsetY) / pixelSize);
+    const index = pixelY * gridSize + pixelX;
+    
+    if (index >= 0 && index < tenThousandPixelString.length) {
+      tenThousandPixelString = tenThousandPixelString.substring(0, index) + selectedColor + tenThousandPixelString.substring(index + 1);
+      redraw();
+    }
+  }
+
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -69,12 +83,16 @@ window.onload = () => {
   });
 
   canvas.addEventListener('mousedown', (e) => {
-    isDragging = true;
     lastX = e.clientX;
     lastY = e.clientY;
+    isMouseDown = true;
   });
 
   canvas.addEventListener('mousemove', (e) => {
+    if (isMouseDown && (Math.abs(e.clientX - lastX) > 5 || Math.abs(e.clientY - lastY) > 5)) {
+      isDragging = true;
+    }
+    
     if (isDragging) {
       const deltaX = e.clientX - lastX;
       const deltaY = e.clientY - lastY;
@@ -90,12 +108,27 @@ window.onload = () => {
     }
   });
 
-  canvas.addEventListener('mouseup', () => {
+  canvas.addEventListener('mouseup', (e) => {
+    if (!isDragging) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      turnPixelBlack(x, y);
+    }
+    
     isDragging = false;
+    isMouseDown = false;
   });
 
   canvas.addEventListener('mouseleave', () => {
     isDragging = false;
+    isMouseDown = false;
+  });
+
+  colorButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      selectedColor = Object.keys(colorMap).find(key => colorMap[key] === button.dataset.color);
+    });
   });
 
   redraw();
