@@ -26,7 +26,7 @@ window.onload = () => {
   let lastX, lastY;
   let selectedColor = "9";
 
-  const socket = new WebSocket('ws://pixels-backend.fly.dev/ws');
+  const socket = new WebSocket('wss://pixels-backend.fly.dev/ws');
 
   socket.onopen = () => {
     console.log('WebSocket connection established');
