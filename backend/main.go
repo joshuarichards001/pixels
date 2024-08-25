@@ -18,12 +18,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type Server struct {
-	clients    map[*websocket.Conn]bool
+	clients    sync.Map
 	broadcast  chan IncomingMessage
 	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
 	data       []rune
-	mu         sync.Mutex
+	mu         sync.RWMutex
 }
 
 type OutgoingMessage struct {
@@ -43,7 +43,6 @@ type UpdatedColor struct {
 
 func newServer() *Server {
 	return &Server{
-		clients:    make(map[*websocket.Conn]bool),
 		broadcast:  make(chan IncomingMessage),
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
@@ -55,32 +54,34 @@ func (s *Server) run() {
 	for {
 		select {
 		case client := <-s.register:
-			s.clients[client] = true
+			s.clients.Store(client, true)
 		case client := <-s.unregister:
-			if _, ok := s.clients[client]; ok {
-				delete(s.clients, client)
-				client.Close()
-			}
+			s.clients.Delete(client)
+			client.Close()
 		case update := <-s.broadcast:
 			s.mu.Lock()
-			if update.Data.Index >= 1 && update.Data.Index <= 9999 {
-				s.data[update.Data.Index-1] = []rune(update.Data.Color)[0]
+			if update.Data.Index >= 0 && update.Data.Index < 10000 {
+				s.data[update.Data.Index] = []rune(update.Data.Color)[0]
 			}
+			dataCopy := string(s.data)
 			s.mu.Unlock()
-			for client := range s.clients {
-				msg := OutgoingMessage{Type: "update", Data: string(s.data)}
+
+			s.clients.Range(func(key, value interface{}) bool {
+				client := key.(*websocket.Conn)
+				msg := OutgoingMessage{Type: "update", Data: dataCopy}
 				jsonMsg, err := json.Marshal(msg)
 				if err != nil {
 					log.Printf("error marshaling json: %v", err)
-					continue
+					return true
 				}
 				err = client.WriteMessage(websocket.TextMessage, jsonMsg)
 				if err != nil {
 					log.Printf("error: %v", err)
 					client.Close()
-					delete(s.clients, client)
+					s.clients.Delete(client)
 				}
-			}
+				return true
+			})
 		}
 	}
 }
@@ -91,23 +92,24 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error: %v", err)
 		return
 	}
-	defer conn.Close()
 
 	s.register <- conn
 
-	s.mu.Lock()
+	s.mu.RLock()
 	initialData := string(s.data)
-	s.mu.Unlock()
+	s.mu.RUnlock()
 
 	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling json: %v", err)
+		conn.Close()
 		return
 	}
 	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
 	if err != nil {
 		log.Printf("error: %v", err)
+		conn.Close()
 		return
 	}
 
