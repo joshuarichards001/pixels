@@ -12,32 +12,42 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  16384,
+	WriteBufferSize: 512,
 	CheckOrigin:     func(r *http.Request) bool { return true }, // Allow all origins
 }
 
 type Server struct {
 	clients    map[*websocket.Conn]bool
-	broadcast  chan string
+	broadcast  chan IncomingMessage
 	register   chan *websocket.Conn
 	unregister chan *websocket.Conn
-	data       string
+	data       []rune
 	mu         sync.Mutex
 }
 
-type Message struct {
+type OutgoingMessage struct {
 	Type string `json:"type"`
 	Data string `json:"data"`
+}
+
+type IncomingMessage struct {
+	Type string       `json:"type"`
+	Data UpdatedColor `json:"data"`
+}
+
+type UpdatedColor struct {
+	Index int    `json:"index"`
+	Color string `json:"color"`
 }
 
 func newServer() *Server {
 	return &Server{
 		clients:    make(map[*websocket.Conn]bool),
-		broadcast:  make(chan string),
+		broadcast:  make(chan IncomingMessage),
 		register:   make(chan *websocket.Conn),
 		unregister: make(chan *websocket.Conn),
-		data:       strings.Repeat("0", 10000),
+		data:       []rune(strings.Repeat("0", 10000)),
 	}
 }
 
@@ -51,12 +61,14 @@ func (s *Server) run() {
 				delete(s.clients, client)
 				client.Close()
 			}
-		case message := <-s.broadcast:
+		case update := <-s.broadcast:
 			s.mu.Lock()
-			s.data = message
+			if update.Data.Index >= 1 && update.Data.Index <= 9999 {
+				s.data[update.Data.Index-1] = []rune(update.Data.Color)[0]
+			}
 			s.mu.Unlock()
 			for client := range s.clients {
-				msg := Message{Type: "update", Data: message}
+				msg := OutgoingMessage{Type: "update", Data: string(s.data)}
 				jsonMsg, err := json.Marshal(msg)
 				if err != nil {
 					log.Printf("error marshaling json: %v", err)
@@ -84,10 +96,10 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	s.register <- conn
 
 	s.mu.Lock()
-	initialData := s.data
+	initialData := string(s.data)
 	s.mu.Unlock()
 
-	initialMsg := Message{Type: "initial", Data: initialData}
+	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling json: %v", err)
@@ -105,15 +117,13 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 			s.unregister <- conn
 			break
 		}
-		var msg Message
-		err = json.Unmarshal(msgBytes, &msg)
+		var update IncomingMessage
+		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
 			log.Printf("error unmarshaling json: %v", err)
 			continue
 		}
-		if msg.Type == "update" {
-			s.broadcast <- msg.Data
-		}
+		s.broadcast <- update
 	}
 }
 

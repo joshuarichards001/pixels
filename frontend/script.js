@@ -86,10 +86,12 @@ window.onload = () => {
     const index = pixelY * gridSize + pixelX;
     
     if (index >= 0 && index < pixelData.length) {
-      const updatedPixelData = pixelData.substring(0, index) + selectedColor + pixelData.substring(index + 1);
       socket.send(JSON.stringify({
         type: 'update',
-        data: updatedPixelData,
+        data: {
+          index,
+          color: selectedColor,
+        },
       }));
     }
   }
