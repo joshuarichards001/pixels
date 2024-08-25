@@ -50,23 +50,23 @@ func newServer() *Server {
 	}
 }
 
-func (s *Server) run() {
+func (server *Server) run() {
 	for {
 		select {
-		case client := <-s.register:
-			s.clients.Store(client, true)
-		case client := <-s.unregister:
-			s.clients.Delete(client)
+		case client := <-server.register:
+			server.clients.Store(client, true)
+		case client := <-server.unregister:
+			server.clients.Delete(client)
 			client.Close()
-		case update := <-s.broadcast:
-			s.mu.Lock()
+		case update := <-server.broadcast:
+			server.mu.Lock()
 			if update.Data.Index >= 0 && update.Data.Index < 10000 {
-				s.data[update.Data.Index] = []rune(update.Data.Color)[0]
+				server.data[update.Data.Index] = []rune(update.Data.Color)[0]
 			}
-			dataCopy := string(s.data)
-			s.mu.Unlock()
+			dataCopy := string(server.data)
+			server.mu.Unlock()
 
-			s.clients.Range(func(key, value interface{}) bool {
+			server.clients.Range(func(key, value interface{}) bool {
 				client := key.(*websocket.Conn)
 				msg := OutgoingMessage{Type: "update", Data: dataCopy}
 				jsonMsg, err := json.Marshal(msg)
@@ -78,7 +78,7 @@ func (s *Server) run() {
 				if err != nil {
 					log.Printf("error: %v", err)
 					client.Close()
-					s.clients.Delete(client)
+					server.clients.Delete(client)
 				}
 				return true
 			})
@@ -86,18 +86,18 @@ func (s *Server) run() {
 	}
 }
 
-func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
+func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("error: %v", err)
 		return
 	}
 
-	s.register <- conn
+	server.register <- conn
 
-	s.mu.RLock()
-	initialData := string(s.data)
-	s.mu.RUnlock()
+	server.mu.RLock()
+	initialData := string(server.data)
+	server.mu.RUnlock()
 
 	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)
@@ -116,7 +116,7 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
-			s.unregister <- conn
+			server.unregister <- conn
 			break
 		}
 		var update IncomingMessage
@@ -125,7 +125,7 @@ func (s *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error unmarshaling json: %v", err)
 			continue
 		}
-		s.broadcast <- update
+		server.broadcast <- update
 	}
 }
 
