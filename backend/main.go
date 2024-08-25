@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -50,6 +51,27 @@ func newServer() *Server {
 	}
 }
 
+func validateIncomingMessage(update IncomingMessage) error {
+	if update.Type != "update" {
+		return fmt.Errorf("invalid message type: %s", update.Type)
+	}
+
+	if update.Data.Index < 0 || update.Data.Index >= 10000 {
+		return fmt.Errorf("invalid index: %d", update.Data.Index)
+	}
+
+	colorNumber, err := strconv.Atoi(update.Data.Color)
+	if err != nil {
+		return fmt.Errorf("invalid color value: %s", update.Data.Color)
+	}
+
+	if colorNumber < 0 || colorNumber > 9 {
+		return fmt.Errorf("color value out of range: %d", colorNumber)
+	}
+
+	return nil
+}
+
 func (server *Server) run() {
 	for {
 		select {
@@ -59,10 +81,13 @@ func (server *Server) run() {
 			server.clients.Delete(client)
 			client.Close()
 		case update := <-server.broadcast:
-			server.mu.Lock()
-			if update.Data.Index >= 0 && update.Data.Index < 10000 {
-				server.data[update.Data.Index] = []rune(update.Data.Color)[0]
+			if err := validateIncomingMessage(update); err != nil {
+				log.Printf("Invalid update message: %v", err)
+				continue
 			}
+
+			server.mu.Lock()
+			server.data[update.Data.Index] = []rune(update.Data.Color)[0]
 			dataCopy := string(server.data)
 			server.mu.Unlock()
 
@@ -90,11 +115,17 @@ func (server *Server) run() {
 func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("error: %v", err)
+		log.Printf("Error upgrading connection: %v", err)
+		http.Error(w, "Could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
 
 	server.register <- conn
+
+	defer func() {
+		server.unregister <- conn
+		conn.Close()
+	}()
 
 	server.mu.RLock()
 	initialData := string(server.data)
@@ -103,29 +134,32 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
-		log.Printf("error marshaling json: %v", err)
-		conn.Close()
+		log.Printf("Error marshaling initial JSON: %v", err)
 		return
 	}
+
 	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
 	if err != nil {
-		log.Printf("error: %v", err)
-		conn.Close()
+		log.Printf("Error sending initial message: %v", err)
 		return
 	}
 
 	for {
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
-			server.unregister <- conn
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Printf("Error reading message: %v", err)
+			}
 			break
 		}
+
 		var update IncomingMessage
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
-			log.Printf("error unmarshaling json: %v", err)
+			log.Printf("Error unmarshaling JSON: %v", err)
 			continue
 		}
+
 		server.broadcast <- update
 	}
 }
