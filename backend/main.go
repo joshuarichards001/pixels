@@ -13,8 +13,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  16384,
-	WriteBufferSize: 512,
+	ReadBufferSize:  64,
+	WriteBufferSize: 10240,
 	CheckOrigin:     func(r *http.Request) bool { return true }, // Allow all origins
 }
 
@@ -81,11 +81,6 @@ func (server *Server) run() {
 			server.clients.Delete(client)
 			client.Close()
 		case update := <-server.broadcast:
-			if err := validateIncomingMessage(update); err != nil {
-				log.Printf("invalid update message: %v", err)
-				continue
-			}
-
 			server.mu.Lock()
 			server.data[update.Data.Index] = []rune(update.Data.Color)[0]
 			dataCopy := string(server.data)
@@ -157,6 +152,13 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
+			conn.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
+			continue
+		}
+
+		if err := validateIncomingMessage(update); err != nil {
+			log.Printf("Invalid update message from client: %v", err)
+			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
 			continue
 		}
 
