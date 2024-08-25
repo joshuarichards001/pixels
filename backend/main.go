@@ -82,7 +82,7 @@ func (server *Server) run() {
 			client.Close()
 		case update := <-server.broadcast:
 			if err := validateIncomingMessage(update); err != nil {
-				log.Printf("Invalid update message: %v", err)
+				log.Printf("invalid update message: %v", err)
 				continue
 			}
 
@@ -115,8 +115,8 @@ func (server *Server) run() {
 func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error upgrading connection: %v", err)
-		http.Error(w, "Could not open websocket connection", http.StatusInternalServerError)
+		log.Printf("error upgrading connection: %v", err)
+		http.Error(w, "could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
 
@@ -134,13 +134,13 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
-		log.Printf("Error marshaling initial JSON: %v", err)
+		log.Printf("error marshaling initial JSON: %v", err)
 		return
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
 	if err != nil {
-		log.Printf("Error sending initial message: %v", err)
+		log.Printf("error sending initial message: %v", err)
 		return
 	}
 
@@ -148,7 +148,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		_, msgBytes, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Error reading message: %v", err)
+				log.Printf("error reading message: %v", err)
 			}
 			break
 		}
@@ -156,7 +156,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		var update IncomingMessage
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
-			log.Printf("Error unmarshaling JSON: %v", err)
+			log.Printf("error unmarshaling JSON: %v", err)
 			continue
 		}
 
