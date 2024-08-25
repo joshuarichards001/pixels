@@ -66,17 +66,18 @@ func (server *Server) run() {
 			dataCopy := string(server.data)
 			server.mu.Unlock()
 
+			msg := OutgoingMessage{Type: "update", Data: dataCopy}
+			jsonMsg, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("error marshaling json: %v", err)
+				continue
+			}
+
 			server.clients.Range(func(key, value interface{}) bool {
 				client := key.(*websocket.Conn)
-				msg := OutgoingMessage{Type: "update", Data: dataCopy}
-				jsonMsg, err := json.Marshal(msg)
+				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
 				if err != nil {
-					log.Printf("error marshaling json: %v", err)
-					return true
-				}
-				err = client.WriteMessage(websocket.TextMessage, jsonMsg)
-				if err != nil {
-					log.Printf("error: %v", err)
+					log.Printf("error sending message to client: %v", err)
 					client.Close()
 					server.clients.Delete(client)
 				}
