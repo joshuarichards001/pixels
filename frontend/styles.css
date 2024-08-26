@@ -10,12 +10,12 @@ canvas {
 }
 
 .color-button-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    margin-top: 20px;
-    width: 300px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 20px;
+  width: 300px;
 }
 
 .color-button {
@@ -29,13 +29,33 @@ canvas {
   border: 4px dashed #edbb08;
 }
 
-.color-button[data-color="#FFFFFF"] { background-color: #FFFFFF; }
-.color-button[data-color="#00FF00"] { background-color: #00FF00; }
-.color-button[data-color="#FFFF00"] { background-color: #FFFF00; }
-.color-button[data-color="#FF0000"] { background-color: #FF0000; }
-.color-button[data-color="#FFA500"] { background-color: #FFA500; }
-.color-button[data-color="#800080"] { background-color: #800080; }
-.color-button[data-color="#0000FF"] { background-color: #0000FF; }
-.color-button[data-color="#008080"] { background-color: #008080; }
-.color-button[data-color="#FFC0CB"] { background-color: #FFC0CB; }
-.color-button[data-color="#000000"] { background-color: #000000; }
+.color-button[data-color="#FFFFFF"] {
+  background-color: #ffffff;
+}
+.color-button[data-color="#74B63E"] {
+  background-color: #74b63e;
+}
+.color-button[data-color="#FFCE33"] {
+  background-color: #ffce33;
+}
+.color-button[data-color="#CC421D"] {
+  background-color: #cc421d;
+}
+.color-button[data-color="#FF8533"] {
+  background-color: #ff8533;
+}
+.color-button[data-color="#87308C"] {
+  background-color: #87308c;
+}
+.color-button[data-color="#1D70A2"] {
+  background-color: #1d70a2;
+}
+.color-button[data-color="#079D9D"] {
+  background-color: #079d9d;
+}
+.color-button[data-color="#F05689"] {
+  background-color: #f05689;
+}
+.color-button[data-color="#000000"] {
+  background-color: #000000;
+}

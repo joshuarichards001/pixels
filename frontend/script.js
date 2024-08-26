@@ -1,13 +1,13 @@
 const colorMap = {
   0: "#FFFFFF", // white
-  1: "#00FF00", // green
-  2: "#FFFF00", // yellow
-  3: "#FF0000", // red
-  4: "#FFA500", // orange
-  5: "#800080", // purple
-  6: "#0000FF", // blue
-  7: "#008080", // teal
-  8: "#FFC0CB", // pink
+  1: "#74B63E", // green
+  2: "#FFCE33", // yellow
+  3: "#CC421D", // red
+  4: "#FF8533", // orange
+  5: "#87308C", // purple
+  6: "#1D70A2", // blue
+  7: "#079D9D", // teal
+  8: "#F05689", // pink
   9: "#000000", // black
 };
 
