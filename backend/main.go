@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
-	"strings"
 	"sync"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
 var upgrader = websocket.Upgrader{
@@ -19,12 +22,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type Server struct {
-	clients    sync.Map
-	broadcast  chan IncomingMessage
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	data       []rune
-	mu         sync.RWMutex
+	clients     sync.Map
+	broadcast   chan IncomingMessage
+	register    chan *websocket.Conn
+	unregister  chan *websocket.Conn
+	redisClient *redis.Client
+	ctx         context.Context
 }
 
 type OutgoingMessage struct {
@@ -42,12 +45,29 @@ type UpdatedColor struct {
 	Color string `json:"color"`
 }
 
+func loadEnv() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("error loading .env file")
+	}
+}
+
 func newServer() *Server {
+	loadEnv()
+
+	ctx := context.Background()
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     os.Getenv("REDIS_ADDRESS"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
+
 	return &Server{
-		broadcast:  make(chan IncomingMessage),
-		register:   make(chan *websocket.Conn),
-		unregister: make(chan *websocket.Conn),
-		data:       []rune(strings.Repeat("0", 10000)),
+		broadcast:   make(chan IncomingMessage),
+		register:    make(chan *websocket.Conn),
+		unregister:  make(chan *websocket.Conn),
+		redisClient: rdb,
+		ctx:         ctx,
 	}
 }
 
@@ -81,10 +101,17 @@ func (server *Server) run() {
 			server.clients.Delete(client)
 			client.Close()
 		case update := <-server.broadcast:
-			server.mu.Lock()
-			server.data[update.Data.Index] = []rune(update.Data.Color)[0]
-			dataCopy := string(server.data)
-			server.mu.Unlock()
+			err := server.redisClient.SetRange(server.ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
+			if err != nil {
+				log.Printf("error updating Redis: %v", err)
+				continue
+			}
+
+			dataCopy, err := server.redisClient.Get(server.ctx, "pixels").Result()
+			if err != nil {
+				log.Printf("error getting data from Redis: %v", err)
+				continue
+			}
 
 			msg := OutgoingMessage{Type: "update", Data: dataCopy}
 			jsonMsg, err := json.Marshal(msg)
@@ -122,9 +149,11 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		conn.Close()
 	}()
 
-	server.mu.RLock()
-	initialData := string(server.data)
-	server.mu.RUnlock()
+	initialData, err := server.redisClient.Get(server.ctx, "pixels").Result()
+	if err != nil {
+		log.Printf("error getting initial data from Redis: %v", err)
+		return
+	}
 
 	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
 	jsonMsg, err := json.Marshal(initialMsg)

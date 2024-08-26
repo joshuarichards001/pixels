@@ -4,7 +4,7 @@
 #
 
 app = 'pixels-backend'
-primary_region = 'iad'
+primary_region = 'syd'
 
 [build]
   [build.args]
