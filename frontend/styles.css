@@ -29,33 +29,33 @@ canvas {
   border: 4px dashed #edbb08;
 }
 
-.color-button[data-color="white"] {
+.color-button[data-color="#FFFFFF"] {
   background-color: #ffffff;
 }
-.color-button[data-color="green"] {
+.color-button[data-color="#74B63E"] {
   background-color: #74b63e;
 }
-.color-button[data-color="yellow"] {
+.color-button[data-color="#FFCE33"] {
   background-color: #ffce33;
 }
-.color-button[data-color="red"] {
+.color-button[data-color="#CC421D"] {
   background-color: #cc421d;
 }
-.color-button[data-color="orange"] {
+.color-button[data-color="#FF8533"] {
   background-color: #ff8533;
 }
-.color-button[data-color="purple"] {
+.color-button[data-color="#87308C"] {
   background-color: #87308c;
 }
-.color-button[data-color="blue"] {
+.color-button[data-color="#1D70A2"] {
   background-color: #1d70a2;
 }
-.color-button[data-color="teal"] {
+.color-button[data-color="#079D9D"] {
   background-color: #079d9d;
 }
-.color-button[data-color="pink"] {
+.color-button[data-color="#F05689"] {
   background-color: #f05689;
 }
-.color-button[data-color="black"] {
+.color-button[data-color="#000000"] {
   background-color: #000000;
 }
