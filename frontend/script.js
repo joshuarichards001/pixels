@@ -25,6 +25,7 @@ window.onload = () => {
   let isMouseDown = false;
   let lastX, lastY;
   let selectedColor = "9";
+  let lastTouchDistance = 0;
 
   const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
 
@@ -78,6 +79,12 @@ window.onload = () => {
     applyOffsetLimits();
 
     redraw();
+  };
+
+  const getTouchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
   };
 
   const updatePixel = (x, y) => {
@@ -149,6 +156,59 @@ window.onload = () => {
   });
 
   canvas.addEventListener("mouseleave", () => {
+    isDragging = false;
+    isMouseDown = false;
+  });
+
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      lastTouchDistance = getTouchDistance(e.touches);
+    } else if (e.touches.length === 1) {
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+      isMouseDown = true;
+    }
+  });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+
+    if (e.touches.length === 2) {
+      const currentDistance = getTouchDistance(e.touches);
+      const zoomFactor = currentDistance / lastTouchDistance;
+
+      const rect = canvas.getBoundingClientRect();
+      const centerX =
+        (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+      const centerY =
+        (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+
+      zoom(zoomFactor, centerX, centerY);
+
+      lastTouchDistance = currentDistance;
+    } else if (e.touches.length === 1 && isMouseDown) {
+      const deltaX = e.touches[0].clientX - lastX;
+      const deltaY = e.touches[0].clientY - lastY;
+
+      offsetX -= deltaX;
+      offsetY -= deltaY;
+
+      applyOffsetLimits();
+
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+      redraw();
+    }
+  });
+
+  canvas.addEventListener("touchend", (e) => {
+    if (e.touches.length === 0 && !isDragging) {
+      const rect = canvas.getBoundingClientRect();
+      const x = lastX - rect.left;
+      const y = lastY - rect.top;
+      updatePixel(x, y);
+    }
+
     isDragging = false;
     isMouseDown = false;
   });
