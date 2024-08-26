@@ -27,6 +27,11 @@ window.onload = () => {
   let selectedColor = "9";
   let lastTouchDistance = 0;
   let touchStartTime = 0;
+  let selectedButton = document.querySelector(
+    '.color-button[data-color="#000000"]',
+  );
+
+  selectedButton.classList.add("selected");
 
   const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
 
@@ -224,6 +229,10 @@ window.onload = () => {
       selectedColor = Object.keys(colorMap).find(
         (key) => colorMap[key] === button.dataset.color,
       );
+
+      selectedButton.classList.remove("selected");
+      button.classList.add("selected");
+      selectedButton = button;
     });
   });
 };

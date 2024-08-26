@@ -25,6 +25,10 @@ canvas {
   cursor: pointer;
 }
 
+.selected {
+  border: 4px dashed #edbb08;
+}
+
 .color-button[data-color="#FFFFFF"] { background-color: #FFFFFF; }
 .color-button[data-color="#00FF00"] { background-color: #00FF00; }
 .color-button[data-color="#FFFF00"] { background-color: #FFFF00; }
