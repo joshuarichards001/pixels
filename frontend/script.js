@@ -26,6 +26,7 @@ window.onload = () => {
   let lastX, lastY;
   let selectedColor = "9";
   let lastTouchDistance = 0;
+  let touchStartTime = 0;
 
   const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
 
@@ -161,6 +162,7 @@ window.onload = () => {
   });
 
   canvas.addEventListener("touchstart", (e) => {
+    touchStartTime = new Date().getTime();
     if (e.touches.length === 2) {
       lastTouchDistance = getTouchDistance(e.touches);
     } else if (e.touches.length === 1) {
@@ -168,6 +170,7 @@ window.onload = () => {
       lastY = e.touches[0].clientY;
       isMouseDown = true;
     }
+    hasMoved = false;
   });
 
   canvas.addEventListener("touchmove", (e) => {
@@ -202,7 +205,10 @@ window.onload = () => {
   });
 
   canvas.addEventListener("touchend", (e) => {
-    if (e.touches.length === 0 && !isDragging) {
+    const touchEndTime = new Date().getTime();
+    const touchDuration = touchEndTime - touchStartTime;
+
+    if (e.touches.length === 0 && touchDuration < 200) {
       const rect = canvas.getBoundingClientRect();
       const x = lastX - rect.left;
       const y = lastY - rect.top;
