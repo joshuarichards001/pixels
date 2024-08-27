@@ -53,9 +53,6 @@ window.onload = () => {
   };
 
   const redraw = () => {
-    canvas.width = 300;
-    canvas.height = 300;
-
     context.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let i = 0; i < pixelData.length; i++) {
