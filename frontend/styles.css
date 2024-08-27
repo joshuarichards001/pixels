@@ -3,6 +3,7 @@ body {
   flex-direction: column;
   align-items: center;
   touch-action: manipulation;
+  font-family: 'Inter', sans-serif;
 }
 
 canvas {
@@ -28,6 +29,7 @@ canvas {
   justify-content: center;
   margin-top: 20px;
   width: 260px;
+  margin-bottom: 20px;
 }
 
 .color-button {
