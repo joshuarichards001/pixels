@@ -13,6 +13,7 @@ const colorMap = {
 
 window.onload = () => {
   const canvas = document.getElementById("canvas");
+  const loadingSpinner = document.getElementById("loading");
   const context = canvas.getContext("2d");
   const colorButtons = document.querySelectorAll(".color-button");
 
@@ -41,11 +42,15 @@ window.onload = () => {
 
   socket.onmessage = (event) => {
     pixelData = JSON.parse(event.data).data;
+    loadingSpinner.style.display = "none";
+    canvas.style.display = "block";
     redraw();
   };
 
   socket.onerror = (error) => {
     console.error("WebSocket error:", error);
+    loadingSpinner.textContent =
+      "Error connecting to server. Please try again later.";
   };
 
   socket.onclose = () => {

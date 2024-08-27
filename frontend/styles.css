@@ -9,6 +9,16 @@ canvas {
   border: 4px solid black;
   cursor: pointer;
   background-color: #cccccc;
+  display: none;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  width: 300px;
+  border: 4px solid black;
 }
 
 .color-button-container {
@@ -17,7 +27,7 @@ canvas {
   gap: 6px;
   justify-content: center;
   margin-top: 20px;
-  width: 300px;
+  width: 260px;
 }
 
 .color-button {
