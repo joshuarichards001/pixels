@@ -7,6 +7,8 @@ body {
 
 canvas {
   border: 4px solid black;
+  cursor: pointer;
+  background-color: #cccccc;
 }
 
 .color-button-container {
