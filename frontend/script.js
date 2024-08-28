@@ -40,7 +40,7 @@ window.onload = () => {
   selectedButton.classList.add("selected");
 
   const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
-
+  
   socket.onopen = () => {
     console.log("WebSocket connection established");
   };
@@ -214,7 +214,7 @@ window.onload = () => {
   });
 
   canvas.addEventListener("mouseup", (e) => {
-    if (!isDragging) {
+    if (!isDragging && touchStartTime === 0) {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
