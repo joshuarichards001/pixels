@@ -46,6 +46,13 @@ window.onload = () => {
   };
 
   socket.onmessage = (event) => {
+    if (event.data === "rate limit") {
+      alert(
+        "You can only update pixels every 200ms, slow down a little bit please :)",
+      );
+      return;
+    }
+
     pixelData = JSON.parse(event.data).data;
     loadingSpinner.style.display = "none";
     canvas.style.display = "block";

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
@@ -36,6 +37,7 @@ type Server struct {
 	unregister  chan *websocket.Conn
 	redisClient *redis.Client
 	ctx         context.Context
+	lastUpdate  sync.Map
 }
 
 type OutgoingMessage struct {
@@ -199,8 +201,24 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
+		if !server.checkRateLimit(conn) {
+			conn.WriteMessage(websocket.TextMessage, []byte("rate limit"))
+			continue
+		}
+
 		server.broadcast <- update
 	}
+}
+
+func (server *Server) checkRateLimit(conn *websocket.Conn) bool {
+	now := time.Now()
+	if lastUpdate, ok := server.lastUpdate.Load(conn); ok {
+		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*200 {
+			return false
+		}
+	}
+	server.lastUpdate.Store(conn, now)
+	return true
 }
 
 func main() {
