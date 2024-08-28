@@ -1,11 +1,12 @@
 # Ten Thousand Pixels
 
-This is my attempt to make a simple clone of r/place using:
+A real-time collaborative pixel art canvas where users can draw pixels and see live updates (similar to Reddit's r/place)
 
 - Frontend
   - HTML
+  - CSS
   - JavaScript
-  - HTML 2D Canvas
+  - HTML5 Canvas
 - Backend
   - Go
   - Websocket's
