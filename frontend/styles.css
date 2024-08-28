@@ -40,7 +40,8 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-  box-sizing: border-box;
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 .color-counter-container {
