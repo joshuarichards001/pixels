@@ -18,7 +18,15 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  64,
 	WriteBufferSize: 10240,
-	CheckOrigin:     func(r *http.Request) bool { return true }, // Allow all origins
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		environment := os.Getenv("ENVIRONMENT")
+		if environment == "development" {
+			return origin == "http://127.0.0.1:5500"
+		} else {
+			return origin == "https://tenthousandpixels.com"
+		}
+	},
 }
 
 type Server struct {
