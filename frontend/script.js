@@ -17,7 +17,7 @@ window.onload = () => {
   const context = canvas.getContext("2d");
   const colorButtons = document.querySelectorAll(".color-button");
 
-  const canvasSize = Math.min(window.innerWidth - 50, 600);
+  const canvasSize = Math.min(window.innerWidth - 50, 500);
 
   canvas.width = canvasSize;
   canvas.height = canvasSize;
