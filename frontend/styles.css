@@ -30,10 +30,10 @@ canvas {
 .zoom-controls button {
   background-color: #fff;
   border: 2px solid black;
-  height: 30px;
-  width: 30px;
+  height: 40px;
+  width: 40px;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 26px;
   color: black;
   border-radius: 6px;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
