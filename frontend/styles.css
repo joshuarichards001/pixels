@@ -34,8 +34,12 @@ canvas {
   width: 30px;
   cursor: pointer;
   font-size: 20px;
+  color: black;
   border-radius: 6px;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .color-counter-container {
