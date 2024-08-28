@@ -63,6 +63,14 @@ window.onload = () => {
     console.log("WebSocket connection closed");
   };
 
+  document.getElementById('zoom-in').addEventListener('click', () => {
+    zoom(1.1, canvas.width / 2, canvas.height / 2);
+  });
+  
+  document.getElementById('zoom-out').addEventListener('click', () => {
+    zoom(0.9, canvas.width / 2, canvas.height / 2);
+  });
+
   const setColorCounters = () => {
     const colorCounts = new Map();
     const colorCounterContainer = document.querySelector(

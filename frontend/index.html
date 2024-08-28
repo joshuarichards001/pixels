@@ -26,10 +26,16 @@
   <body>
     <h1>Ten Thousand Pixels</h1>
     <div class="color-counter-container"></div>
-    <div id="loading" class="loading">
-      <img src="loading.svg" alt="Loading" />
+    <div class="canvas-container">
+      <div id="loading" class="loading">
+        <img src="loading.svg" alt="Loading" />
+      </div>
+      <canvas id="canvas"></canvas>
+      <div class="zoom-controls">
+        <button id="zoom-in">+</button>
+        <button id="zoom-out">-</button>
+      </div>
     </div>
-    <canvas id="canvas"></canvas>
     <div class="color-button-container">
       <button class="color-button" data-color="#000000"></button>
       <button class="color-button" data-color="#FFFFFF"></button>
