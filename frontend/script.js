@@ -270,7 +270,7 @@ window.onload = () => {
     const touchEndTime = new Date().getTime();
     const touchDuration = touchEndTime - touchStartTime;
 
-    if (e.touches.length === 0 && touchDuration < 200) {
+    if (e.touches.length === 0 && touchDuration < 100) {
       const rect = canvas.getBoundingClientRect();
       const x = lastX - rect.left;
       const y = lastY - rect.top;
