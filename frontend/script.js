@@ -21,8 +21,6 @@ window.onload = () => {
 
   canvas.width = canvasSize;
   canvas.height = canvasSize;
-  loadingSpinner.style.width = canvasSize + "px";
-  loadingSpinner.style.height = canvasSize + "px";
 
   const gridSize = 100;
   let pixelData = "";
