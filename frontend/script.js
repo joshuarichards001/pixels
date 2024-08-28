@@ -31,11 +31,11 @@ window.onload = () => {
   let isDragging = false;
   let isMouseDown = false;
   let lastX, lastY;
-  let selectedColor = "9";
+  let selectedColor = localStorage.getItem("selectedColor") || "9";
   let lastTouchDistance = 0;
   let touchStartTime = 0;
   let selectedButton = document.querySelector(
-    '.color-button[data-color="#000000"]',
+    `.color-button[data-color="${colorMap[selectedColor]}"]`,
   );
 
   selectedButton.classList.add("selected");
@@ -306,6 +306,8 @@ window.onload = () => {
       selectedColor = Object.keys(colorMap).find(
         (key) => colorMap[key] === button.dataset.color,
       );
+
+      localStorage.setItem("selectedColor", selectedColor);
 
       selectedButton.classList.remove("selected");
       button.classList.add("selected");
