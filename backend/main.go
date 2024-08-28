@@ -41,8 +41,9 @@ type Server struct {
 }
 
 type OutgoingMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data"`
+	Type        string `json:"type"`
+	Data        string `json:"data"`
+	ClientCount int    `json:"clientCount"`
 }
 
 type IncomingMessage struct {
@@ -123,7 +124,9 @@ func (server *Server) run() {
 				continue
 			}
 
-			msg := OutgoingMessage{Type: "update", Data: dataCopy}
+			clientCount := server.countClients()
+
+			msg := OutgoingMessage{Type: "update", Data: dataCopy, ClientCount: clientCount}
 			jsonMsg, err := json.Marshal(msg)
 			if err != nil {
 				log.Printf("error marshaling json: %v", err)
@@ -165,7 +168,9 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	initialMsg := OutgoingMessage{Type: "initial", Data: initialData}
+	clientCount := server.countClients()
+
+	initialMsg := OutgoingMessage{Type: "initial", Data: initialData, ClientCount: clientCount}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling initial JSON: %v", err)
@@ -219,6 +224,15 @@ func (server *Server) checkRateLimit(conn *websocket.Conn) bool {
 	}
 	server.lastUpdate.Store(conn, now)
 	return true
+}
+
+func (server *Server) countClients() int {
+	count := 0
+	server.clients.Range(func(key, value interface{}) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 func main() {

@@ -23,6 +23,7 @@ window.onload = () => {
   canvas.height = canvasSize;
 
   const gridSize = 100;
+  let clientCount = 0;
   let pixelData = "";
   let pixelSize = canvasSize / 100;
   let offsetX = 0;
@@ -40,7 +41,7 @@ window.onload = () => {
   selectedButton.classList.add("selected");
 
   const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
-  
+
   socket.onopen = () => {
     console.log("WebSocket connection established");
   };
@@ -52,6 +53,10 @@ window.onload = () => {
       );
       return;
     }
+
+    clientCount = JSON.parse(event.data).clientCount;
+
+    document.getElementById("client-count").textContent = clientCount;
 
     pixelData = JSON.parse(event.data).data;
     loadingSpinner.style.display = "none";

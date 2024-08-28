@@ -6,6 +6,34 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
+header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  font-size: clamp(24px, 4vw, 32px);
+}
+
+.client-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #74B63E;
+  color: #1d2e0f;
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .canvas-container {
   position: relative;
   display: inline-block;

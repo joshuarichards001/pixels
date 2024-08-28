@@ -24,31 +24,52 @@
     ></script>
   </head>
   <body>
-    <h1>Ten Thousand Pixels</h1>
-    <div class="color-counter-container"></div>
-    <div class="canvas-container">
-      <div id="loading" class="loading">
-        <img src="loading.svg" alt="Loading" />
+    <header>
+      <h1>Ten Thousand Pixels</h1>
+      <div class="client-count">
+        <span id="client-count">...</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+        >
+          <path
+            d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM12.735 14c.618 0 1.093-.561.872-1.139a6.002 6.002 0 0 0-11.215 0c-.22.578.254 1.139.872 1.139h9.47Z"
+          />
+        </svg>
       </div>
-      <canvas id="canvas"></canvas>
-      <div class="zoom-controls">
-        <button id="zoom-in">+</button>
-        <button id="zoom-out">-</button>
+    </header>
+    <section>
+      <div class="color-counter-container"></div>
+      <div class="canvas-container">
+        <div id="loading" class="loading">
+          <img src="loading.svg" alt="Loading" />
+        </div>
+        <canvas id="canvas"></canvas>
+        <div class="zoom-controls">
+          <button id="zoom-in">+</button>
+          <button id="zoom-out">-</button>
+        </div>
       </div>
-    </div>
-    <div class="color-button-container">
-      <button class="color-button" data-color="#000000"></button>
-      <button class="color-button" data-color="#FFFFFF"></button>
-      <button class="color-button" data-color="#CC421D"></button>
-      <button class="color-button" data-color="#FF8533"></button>
-      <button class="color-button" data-color="#FFCE33"></button>
-      <button class="color-button" data-color="#74B63E"></button>
-      <button class="color-button" data-color="#079D9D"></button>
-      <button class="color-button" data-color="#1D70A2"></button>
-      <button class="color-button" data-color="#87308C"></button>
-      <button class="color-button" data-color="#F05689"></button>
-    </div>
-    <p>Made by <a target="_blank" href="https://josh.work">Josh Richards</a></p>
+      <div class="color-button-container">
+        <button class="color-button" data-color="#000000"></button>
+        <button class="color-button" data-color="#FFFFFF"></button>
+        <button class="color-button" data-color="#CC421D"></button>
+        <button class="color-button" data-color="#FF8533"></button>
+        <button class="color-button" data-color="#FFCE33"></button>
+        <button class="color-button" data-color="#74B63E"></button>
+        <button class="color-button" data-color="#079D9D"></button>
+        <button class="color-button" data-color="#1D70A2"></button>
+        <button class="color-button" data-color="#87308C"></button>
+        <button class="color-button" data-color="#F05689"></button>
+      </div>
+    </section>
+    <footer>
+      <p>
+        Made by <a target="_blank" href="https://josh.work">Josh Richards</a>
+      </p>
+    </footer>
     <script src="script.js"></script>
   </body>
 </html>
