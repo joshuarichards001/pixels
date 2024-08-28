@@ -282,11 +282,11 @@ window.onload = () => {
   });
 
   document.getElementById("zoom-in").addEventListener("click", () => {
-    zoom(1.1, canvas.width / 2, canvas.height / 2);
+    zoom(1.2, canvas.width / 2, canvas.height / 2);
   });
 
   document.getElementById("zoom-out").addEventListener("click", () => {
-    zoom(0.9, canvas.width / 2, canvas.height / 2);
+    zoom(0.8, canvas.width / 2, canvas.height / 2);
   });
 
   colorButtons.forEach((button) => {

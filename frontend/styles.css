@@ -24,7 +24,8 @@ canvas {
   right: 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px
+  gap: 8px;
+  width: 30px;
 }
 
 .zoom-controls button {
