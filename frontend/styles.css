@@ -30,8 +30,7 @@ canvas {
   gap: 6px;
   justify-content: center;
   margin-top: 20px;
-  width: 260px;
-  margin-bottom: 20px;
+  margin-bottom: 40px;
 }
 
 .color-button {
@@ -74,4 +73,10 @@ canvas {
 }
 .color-button[data-color="#000000"] {
   background-color: #000000;
+}
+
+@media (max-width: 500px) {
+  .color-button-container {
+    width: 240px;
+  }
 }
