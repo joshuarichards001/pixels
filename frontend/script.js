@@ -17,9 +17,16 @@ window.onload = () => {
   const context = canvas.getContext("2d");
   const colorButtons = document.querySelectorAll(".color-button");
 
+  const canvasSize = Math.min(window.innerWidth - 50, 600);
+
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  loadingSpinner.style.width = canvasSize + "px";
+  loadingSpinner.style.height = canvasSize + "px";
+
   const gridSize = 100;
   let pixelData = "";
-  let pixelSize = 3;
+  let pixelSize = canvasSize / 100;
   let offsetX = 0;
   let offsetY = 0;
   let isDragging = false;
@@ -79,7 +86,9 @@ window.onload = () => {
   const zoom = (factor, cursorX, cursorY) => {
     const oldPixelSize = pixelSize;
     pixelSize *= factor;
-    pixelSize = Math.max(3, Math.min(30, pixelSize));
+    const maxPixelSize = canvasSize / 10;
+    const minPixelSize = canvasSize / 100;
+    pixelSize = Math.max(minPixelSize, Math.min(maxPixelSize, pixelSize));
 
     offsetX = (offsetX + cursorX) * (pixelSize / oldPixelSize) - cursorX;
     offsetY = (offsetY + cursorY) * (pixelSize / oldPixelSize) - cursorY;
