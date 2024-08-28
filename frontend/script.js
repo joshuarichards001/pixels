@@ -103,8 +103,8 @@ window.onload = () => {
   };
 
   const updatePixel = (x, y) => {
-    const pixelX = Math.floor((x + offsetX) / pixelSize);
-    const pixelY = Math.floor((y + offsetY) / pixelSize);
+    const pixelX = Math.floor((x - 4 + offsetX) / pixelSize);
+    const pixelY = Math.floor((y - 4 + offsetY) / pixelSize);
     const index = pixelY * gridSize + pixelX;
 
     if (index >= 0 && index < pixelData.length) {
@@ -123,8 +123,8 @@ window.onload = () => {
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
+    const cursorX = e.clientX - rect.left - 4;
+    const cursorY = e.clientY - rect.top - 4;
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
     zoom(zoomFactor, cursorX, cursorY);
   });
