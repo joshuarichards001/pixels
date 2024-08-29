@@ -118,6 +118,8 @@ func (server *Server) run() {
 				continue
 			}
 
+			log.Printf("Pixel updated: index=%d, color=%s", update.Data.Index, update.Data.Color)
+
 			dataCopy, err := server.redisClient.Get(server.ctx, "pixels").Result()
 			if err != nil {
 				log.Printf("error getting data from Redis: %v", err)
