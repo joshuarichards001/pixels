@@ -40,7 +40,8 @@ window.onload = () => {
 
   selectedButton.classList.add("selected");
 
-  const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
+  // const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
+  const socket = new WebSocket("ws://localhost:8080/ws");
 
   socket.onopen = () => {
     console.log("WebSocket connection established");
@@ -167,17 +168,23 @@ window.onload = () => {
     const pixelY = Math.floor((y - 4 + offsetY) / pixelSize);
     const index = pixelY * gridSize + pixelX;
 
-    if (index >= 0 && index < pixelData.length) {
-      socket.send(
-        JSON.stringify({
-          type: "update",
-          data: {
-            index,
-            color: selectedColor,
-          },
-        }),
-      );
+    if (index < 0 && index >= pixelData.length) {
+      return;
     }
+
+    if (pixelData[index] === selectedColor) {
+      return;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: "update",
+        data: {
+          index,
+          color: selectedColor,
+        },
+      }),
+    );
   };
 
   canvas.addEventListener("wheel", (e) => {
