@@ -40,8 +40,8 @@ window.onload = () => {
 
   selectedButton.classList.add("selected");
 
-  // const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
-  const socket = new WebSocket("ws://localhost:8080/ws");
+  const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
+  // const socket = new WebSocket("ws://localhost:8080/ws");
 
   socket.onopen = () => {
     console.log("WebSocket connection established");
