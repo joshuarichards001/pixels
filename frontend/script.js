@@ -25,6 +25,7 @@ window.onload = () => {
   const gridSize = 100;
   let clientCount = 0;
   let pixelData = "";
+  let localPixelUpdates = new Map();
   let pixelSize = canvasSize / 100;
   let offsetX = 0;
   let offsetY = 0;
@@ -40,8 +41,8 @@ window.onload = () => {
 
   selectedButton.classList.add("selected");
 
-  const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
-  // const socket = new WebSocket("ws://localhost:8080/ws");
+  // const socket = new WebSocket("wss://pixels-backend.fly.dev/ws");
+  const socket = new WebSocket("ws://localhost:8080/ws");
 
   socket.onopen = () => {
     console.log("WebSocket connection established");
@@ -163,12 +164,38 @@ window.onload = () => {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  const sendBatchedUpdates = () => {
+    if (localPixelUpdates.size === 0) {
+      return;
+    }
+
+    pixelUpdateArray = Array.from(localPixelUpdates)
+
+    socket.send(
+      JSON.stringify({
+        type: "batchUpdate",
+        data: pixelUpdateArray,
+      }),
+    );
+    localPixelUpdates = new Map();
+  };
+
+  const debouncedSendBatchedUpdates = debounce(sendBatchedUpdates, 3000);
+
   const updatePixel = (x, y) => {
     const pixelX = Math.floor((x - 4 + offsetX) / pixelSize);
     const pixelY = Math.floor((y - 4 + offsetY) / pixelSize);
     const index = pixelY * gridSize + pixelX;
 
-    if (index < 0 && index >= pixelData.length) {
+    if (index < 0 || index >= pixelData.length) {
       return;
     }
 
@@ -176,15 +203,16 @@ window.onload = () => {
       return;
     }
 
-    socket.send(
-      JSON.stringify({
-        type: "update",
-        data: {
-          index,
-          color: selectedColor,
-        },
-      }),
-    );
+    pixelData =
+      pixelData.slice(0, index) + selectedColor + pixelData.slice(index + 1);
+
+    redraw();
+
+    const pixelUpdate = localPixelUpdates.get(selectedColor) || [];
+    pixelUpdate.push(index);
+    localPixelUpdates.set(selectedColor, pixelUpdate);
+
+    debouncedSendBatchedUpdates();
   };
 
   canvas.addEventListener("wheel", (e) => {
