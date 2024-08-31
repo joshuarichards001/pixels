@@ -169,7 +169,7 @@ window.onload = () => {
   const updatePixel = (x, y) => {
     const now = Date.now();
 
-    if (now - lastUpdateTime < 200) {
+    if (now - lastUpdateTime < 1000) {
       return;
     }
 
