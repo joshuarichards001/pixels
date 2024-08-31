@@ -34,6 +34,7 @@ window.onload = () => {
   let selectedColor = localStorage.getItem("selectedColor") || "9";
   let lastTouchDistance = 0;
   let touchStartTime = 0;
+  let lastUpdateTime = 0;
   let selectedButton = document.querySelector(
     `.color-button[data-color="${colorMap[selectedColor]}"]`,
   );
@@ -49,9 +50,6 @@ window.onload = () => {
 
   socket.onmessage = (event) => {
     if (event.data === "rate limit") {
-      alert(
-        "You can only update pixels every 200ms, slow down a little bit please :)",
-      );
       return;
     }
 
@@ -164,6 +162,14 @@ window.onload = () => {
   };
 
   const updatePixel = (x, y) => {
+    const now = Date.now();
+    
+    if (now - lastUpdateTime < 200) {
+      return;
+    }
+
+    lastUpdateTime = now;
+
     const pixelX = Math.floor((x - 4 + offsetX) / pixelSize);
     const pixelY = Math.floor((y - 4 + offsetY) / pixelSize);
     const index = pixelY * gridSize + pixelX;
