@@ -220,7 +220,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 func (server *Server) checkRateLimit(conn *websocket.Conn) bool {
 	now := time.Now()
 	if lastUpdate, ok := server.lastUpdate.Load(conn); ok {
-		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*200 {
+		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*1000 {
 			return false
 		}
 	}
