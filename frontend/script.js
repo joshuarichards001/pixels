@@ -16,6 +16,11 @@ window.onload = () => {
   const loadingSpinner = document.getElementById("loading");
   const context = canvas.getContext("2d");
   const colorButtons = document.querySelectorAll(".color-button");
+  const pixelCountElement = document.getElementById("pixel-count");
+
+  pixelCountElement.textContent = `You've updated ${
+    localStorage.getItem("pixelCount") || 0
+  } pixels`;
 
   const canvasSize = Math.min(window.innerWidth - 50, 500);
 
@@ -163,7 +168,7 @@ window.onload = () => {
 
   const updatePixel = (x, y) => {
     const now = Date.now();
-    
+
     if (now - lastUpdateTime < 200) {
       return;
     }
@@ -181,6 +186,11 @@ window.onload = () => {
     if (pixelData[index] === selectedColor) {
       return;
     }
+
+    const oldPixelCount = localStorage.getItem("pixelCount") || 0;
+    const newPixelCount = parseInt(oldPixelCount) + 1;
+    localStorage.setItem("pixelCount", newPixelCount);
+    pixelCountElement.textContent = `You've updated ${newPixelCount} pixels`;
 
     socket.send(
       JSON.stringify({

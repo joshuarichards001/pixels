@@ -107,7 +107,7 @@ canvas {
   gap: 6px;
   justify-content: center;
   margin-top: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 10px;
 }
 
 .color-button {
@@ -150,6 +150,10 @@ canvas {
 }
 .color-button[data-color="#000000"] {
   background-color: #000000;
+}
+
+.pixel-count {
+  margin-bottom: 40px;
 }
 
 @media (max-width: 550px) {
