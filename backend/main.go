@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -208,7 +209,8 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		if !server.checkRateLimit(conn) {
+		ip := getIP(r)
+		if !server.checkRateLimit(ip) {
 			conn.WriteMessage(websocket.TextMessage, []byte("rate limit"))
 			continue
 		}
@@ -217,14 +219,22 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (server *Server) checkRateLimit(conn *websocket.Conn) bool {
+func getIP(r *http.Request) string {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
+}
+
+func (server *Server) checkRateLimit(ip string) bool {
 	now := time.Now()
-	if lastUpdate, ok := server.lastUpdate.Load(conn); ok {
-		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*500 {
+	if lastUpdate, ok := server.lastUpdate.Load(ip); ok {
+		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*200 {
 			return false
 		}
 	}
-	server.lastUpdate.Store(conn, now)
+	server.lastUpdate.Store(ip, now)
 	return true
 }
 
