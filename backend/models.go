@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
@@ -15,7 +16,7 @@ type Server struct {
 	unregister  chan *websocket.Conn
 	redisClient *redis.Client
 	ctx         context.Context
-	lastUpdate  sync.Map
+	rateLimits  sync.Map
 }
 
 type OutgoingMessage struct {
@@ -32,4 +33,9 @@ type IncomingMessage struct {
 type UpdatedColor struct {
 	Index int    `json:"index"`
 	Color string `json:"color"`
+}
+
+type RateLimitData struct {
+	mu         sync.Mutex
+	timestamps []time.Time
 }

@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
@@ -157,17 +156,6 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 
 		server.broadcast <- update
 	}
-}
-
-func (server *Server) checkRateLimit(ip string) bool {
-	now := time.Now()
-	if lastUpdate, ok := server.lastUpdate.Load(ip); ok {
-		if now.Sub(lastUpdate.(time.Time)) < time.Millisecond*200 {
-			return false
-		}
-	}
-	server.lastUpdate.Store(ip, now)
-	return true
 }
 
 func (server *Server) countClients() int {
