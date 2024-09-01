@@ -150,7 +150,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 
 		ip := getIP(r)
 		if !server.checkRateLimit(ip) {
-			conn.WriteMessage(websocket.TextMessage, []byte("rate limit"))
+			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
 			continue
 		}
 

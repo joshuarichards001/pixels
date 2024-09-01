@@ -19,7 +19,7 @@ func (server *Server) checkRateLimit(ip string) bool {
 		}
 	}
 
-	if len(updatesInTimeLimit) >= 20 {
+	if len(updatesInTimeLimit) >= 10 {
 		ipPixelUpdateTimes.timestamps = updatesInTimeLimit
 		return false
 	}
@@ -46,7 +46,7 @@ func (server *Server) cleanupRateLimits() {
 		if len(ipPixelUpdateTimes.timestamps) == 0 || ipPixelUpdateTimes.timestamps[len(ipPixelUpdateTimes.timestamps)-1].Before(cutoff) {
 			server.rateLimits.Delete(key)
 		}
-		
+
 		return true
 	})
 }
