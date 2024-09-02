@@ -12,6 +12,7 @@ const colorMap = {
 };
 
 window.onload = () => {
+  // cache test
   const canvas = document.getElementById("canvas");
   const loadingSpinner = document.getElementById("loading");
   const context = canvas.getContext("2d");
