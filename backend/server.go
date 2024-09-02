@@ -44,7 +44,7 @@ func (server *Server) run() {
 				continue
 			}
 
-			dataCopy, err := server.redisClient.Get(server.ctx, "pixels").Result()
+			_, err = server.redisClient.Get(server.ctx, "pixels").Result()
 			if err != nil {
 				log.Printf("error getting data from Redis: %v", err)
 				continue
@@ -52,7 +52,7 @@ func (server *Server) run() {
 
 			clientCount := server.countClients()
 
-			msg := OutgoingMessage{Type: "update", Data: dataCopy, ClientCount: clientCount}
+			msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: clientCount}
 			jsonMsg, err := json.Marshal(msg)
 			if err != nil {
 				log.Printf("error marshaling json: %v", err)
@@ -110,7 +110,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 
 	clientCount := server.countClients()
 
-	initialMsg := OutgoingMessage{Type: "initial", Data: initialData, ClientCount: clientCount}
+	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: clientCount}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling initial JSON: %v", err)
@@ -151,9 +151,9 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
 			continue
 		}
-		
+
 		log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.Data.Index, update.Data.Color, ip)
-		
+
 		server.broadcast <- update
 	}
 }

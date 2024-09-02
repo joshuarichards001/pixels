@@ -19,10 +19,16 @@ type Server struct {
 	rateLimits  sync.Map
 }
 
-type OutgoingMessage struct {
+type InitialMessage struct {
 	Type        string `json:"type"`
 	Data        string `json:"data"`
 	ClientCount int    `json:"clientCount"`
+}
+
+type OutgoingMessage struct {
+	Type        string       `json:"type"`
+	Data        UpdatedColor `json:"data"`
+	ClientCount int          `json:"clientCount"`
 }
 
 type IncomingMessage struct {

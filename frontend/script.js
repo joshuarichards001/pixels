@@ -54,17 +54,24 @@ window.onload = () => {
   };
 
   socket.onmessage = (event) => {
-    if (event.data === "rate limit") {
+    if (event.data === "rate limit exceeded") {
       return;
     }
 
-    clientCount = JSON.parse(event.data).clientCount;
+    const messageData = JSON.parse(event.data);
 
-    document.getElementById("client-count").textContent = clientCount;
+    if (messageData.type === "initial") {
+      pixelData = messageData.data;
+      loadingSpinner.style.display = "none";
+      canvas.style.display = "block";
+    } else if (messageData.type === "update") {
+      const { index, color } = messageData.data;
+      pixelData =
+        pixelData.substring(0, index) + color + pixelData.substring(index + 1);
+    }
 
-    pixelData = JSON.parse(event.data).data;
-    loadingSpinner.style.display = "none";
-    canvas.style.display = "block";
+    document.getElementById("client-count").textContent =
+      messageData.clientCount;
     redraw();
     setColorCounters();
   };
