@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -38,12 +39,13 @@ func validateIncomingMessage(update IncomingMessage) error {
 }
 
 func getIP(r *http.Request) string {
-	IPAddress := r.Header.Get("X-Real-Ip")
-	if IPAddress == "" {
-		IPAddress = r.Header.Get("X-Forwarded-For")
-	}
-	if IPAddress == "" {
-		IPAddress = r.RemoteAddr
-	}
-	return IPAddress
+    if ip := r.Header.Get("X-Real-Ip"); ip != "" {
+        return ip
+    }
+
+    if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
+        return strings.Split(ip, ",")[0]
+    }
+
+    return r.RemoteAddr
 }
