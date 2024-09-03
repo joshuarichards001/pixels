@@ -58,6 +58,11 @@ window.onload = () => {
       return;
     }
 
+    if (event.data === "client limit exceeded") {
+      loadingSpinner.textContent = "Client limit exceeded. Please try again later.";
+      return;
+    }
+
     const messageData = JSON.parse(event.data);
 
     if (messageData.type === "initial") {

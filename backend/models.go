@@ -44,4 +44,5 @@ type UpdatedColor struct {
 type RateLimitData struct {
 	mu         sync.Mutex
 	timestamps []time.Time
+	clientCount int
 }

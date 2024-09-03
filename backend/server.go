@@ -95,10 +95,18 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	ip := getIP(r)
+	if !server.checkAndUpdateClientCount(ip, true) {
+		conn.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
+		conn.Close()
+		return
+	}
+
 	server.register <- conn
 
 	defer func() {
 		server.unregister <- conn
+		server.checkAndUpdateClientCount(ip, false)
 		conn.Close()
 	}()
 
@@ -146,7 +154,6 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 			continue
 		}
 
-		ip := getIP(r)
 		if !server.checkRateLimit(ip) {
 			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
 			continue
@@ -165,4 +172,26 @@ func (server *Server) countClients() int {
 		return true
 	})
 	return count
+}
+
+func (server *Server) checkAndUpdateClientCount(ip string, increment bool) bool {
+	value, _ := server.rateLimits.LoadOrStore(ip, &RateLimitData{})
+	rateLimitData := value.(*RateLimitData)
+
+	rateLimitData.mu.Lock()
+	defer rateLimitData.mu.Unlock()
+
+	if increment {
+		if rateLimitData.clientCount >= 3 {
+			return false
+		}
+		rateLimitData.clientCount++
+	} else {
+		rateLimitData.clientCount--
+		if rateLimitData.clientCount == 0 {
+			server.rateLimits.Delete(ip)
+		}
+	}
+
+	return true
 }
