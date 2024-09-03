@@ -173,25 +173,3 @@ func (server *Server) countClients() int {
 	})
 	return count
 }
-
-func (server *Server) checkAndUpdateClientCount(ip string, increment bool) bool {
-	value, _ := server.rateLimits.LoadOrStore(ip, &RateLimitData{})
-	rateLimitData := value.(*RateLimitData)
-
-	rateLimitData.mu.Lock()
-	defer rateLimitData.mu.Unlock()
-
-	if increment {
-		if rateLimitData.clientCount >= 3 {
-			return false
-		}
-		rateLimitData.clientCount++
-	} else {
-		rateLimitData.clientCount--
-		if rateLimitData.clientCount == 0 {
-			server.rateLimits.Delete(ip)
-		}
-	}
-
-	return true
-}
