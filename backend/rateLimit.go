@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"log"
+	"time"
+)
 
 func (server *Server) checkRateLimit(ip string) bool {
 	now := time.Now()
@@ -20,6 +23,7 @@ func (server *Server) checkRateLimit(ip string) bool {
 	}
 
 	if len(updatesInTimeLimit) >= 10 {
+		log.Printf("IP %s hit pixel update rate limit", ip)
 		ipPixelUpdateTimes.timestamps = updatesInTimeLimit
 		return false
 	}
@@ -60,6 +64,7 @@ func (server *Server) checkAndUpdateClientCount(ip string, increment bool) bool 
 
 	if increment {
 		if rateLimitData.clientCount >= 3 {
+			log.Printf("IP %s hit client count limit", ip)
 			return false
 		}
 		rateLimitData.clientCount++
