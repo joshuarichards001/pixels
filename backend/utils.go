@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -15,6 +17,38 @@ func loadEnv() {
 	if err != nil {
 		log.Println("error loading .env file")
 	}
+}
+
+func verifyHCaptcha(token string) error {
+	resp, err := http.PostForm("https://hcaptcha.com/siteverify", map[string][]string{
+		"response": {token},
+		"secret":   {os.Getenv("HCAPTCHA_SECRET")},
+	})
+
+	if err != nil {
+		return fmt.Errorf("error verifying hCaptcha: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Success     bool     `json:"success"`
+		ChallengeTs string   `json:"challenge_ts"`
+		Hostname    string   `json:"hostname"`
+		Credit      string   `json:"credit"`
+		Errors      []string `json:"error-codes"`
+		Score       float64  `json:"score"`
+		ScoreReason string   `json:"score_reason"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		return fmt.Errorf("error decoding hCaptcha response: %v", err)
+	}
+
+	if !result.Success {
+		return fmt.Errorf("hCaptcha verification failed")
+	}
+
+	return nil
 }
 
 func validateIncomingMessage(update IncomingMessage) error {
@@ -39,13 +73,13 @@ func validateIncomingMessage(update IncomingMessage) error {
 }
 
 func getIP(r *http.Request) string {
-    if ip := r.Header.Get("X-Real-Ip"); ip != "" {
-        return ip
-    }
+	if ip := r.Header.Get("X-Real-Ip"); ip != "" {
+		return ip
+	}
 
-    if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
-        return strings.Split(ip, ",")[0]
-    }
+	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
+		return strings.Split(ip, ",")[0]
+	}
 
-    return r.RemoteAddr
+	return r.RemoteAddr
 }

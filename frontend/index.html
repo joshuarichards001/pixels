@@ -22,6 +22,7 @@
       data-domain="tenthousandpixels.com"
       src="https://plausible.io/js/script.js"
     ></script>
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   </head>
   <body>
     <header>
@@ -40,10 +41,17 @@
         </svg>
       </div>
     </header>
-    <section>
+    <main>
       <div class="color-counter-container"></div>
       <div class="canvas-container">
         <div id="loading" class="loading">
+          <form id="form" action="/" method="POST">
+            <div
+              class="h-captcha"
+              data-sitekey="f15eb5e6-d9de-4c06-a610-4c5efcaa3ee4"
+              data-callback="connectToWebsocket"
+            ></div>
+          </form>
           <img src="loading.svg" alt="Loading" />
         </div>
         <canvas id="canvas"></canvas>
@@ -65,7 +73,7 @@
         <button class="color-button" data-color="#F05689"></button>
       </div>
       <p class="pixel-count" id="pixel-count"></p>
-    </section>
+    </main>
     <footer>
       <p>
         Made by <a target="_blank" href="https://josh.work">Josh Richards</a>

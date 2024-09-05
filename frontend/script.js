@@ -28,7 +28,7 @@ window.onload = () => {
   canvas.height = canvasSize;
 
   const gridSize = 100;
-  let clientCount = 0;
+  let socket;
   let pixelData = "";
   let pixelSize = canvasSize / 100;
   let offsetX = 0;
@@ -46,49 +46,60 @@ window.onload = () => {
 
   selectedButton.classList.add("selected");
 
-  const socket = new WebSocket("wss://websocket.tenthousandpixels.com/ws");
-  // const socket = new WebSocket("ws://localhost:8080/ws");
+  window.connectToWebsocket = function (hCaptchaToken) {
+    const socket = new WebSocket("wss://websocket.tenthousandpixels.com/ws", [
+      "Authorization",
+      hCaptchaToken,
+    ]);
+    // const socket = new WebSocket("ws://localhost:8080/ws", [
+    //   "Authorization",
+    //   hCaptchaToken,
+    // ]);
 
-  socket.onopen = () => {
-    console.log("WebSocket connection established");
-  };
+    socket.onopen = () => {
+      console.log("WebSocket connection established");
+    };
 
-  socket.onmessage = (event) => {
-    if (event.data === "rate limit exceeded") {
-      return;
-    }
+    socket.onmessage = (event) => {
+      if (event.data === "rate limit exceeded") {
+        return;
+      }
 
-    if (event.data === "client limit exceeded") {
-      loadingSpinner.textContent = "Client limit exceeded. Please try again later.";
-      return;
-    }
+      if (event.data === "client limit exceeded") {
+        loadingSpinner.textContent =
+          "Client limit exceeded. Please try again later.";
+        return;
+      }
 
-    const messageData = JSON.parse(event.data);
+      const messageData = JSON.parse(event.data);
 
-    if (messageData.type === "initial") {
-      pixelData = messageData.data;
-      loadingSpinner.style.display = "none";
-      canvas.style.display = "block";
-    } else if (messageData.type === "update") {
-      const { index, color } = messageData.data;
-      pixelData =
-        pixelData.substring(0, index) + color + pixelData.substring(index + 1);
-    }
+      if (messageData.type === "initial") {
+        pixelData = messageData.data;
+        loadingSpinner.style.display = "none";
+        canvas.style.display = "block";
+      } else if (messageData.type === "update") {
+        const { index, color } = messageData.data;
+        pixelData =
+          pixelData.substring(0, index) +
+          color +
+          pixelData.substring(index + 1);
+      }
 
-    document.getElementById("client-count").textContent =
-      messageData.clientCount;
-    redraw();
-    setColorCounters();
-  };
+      document.getElementById("client-count").textContent =
+        messageData.clientCount;
+      redraw();
+      setColorCounters();
+    };
 
-  socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-    loadingSpinner.textContent =
-      "Error connecting to server. Please try again later.";
-  };
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      loadingSpinner.textContent =
+        "Error connecting to server. Please try again later.";
+    };
 
-  socket.onclose = () => {
-    console.log("WebSocket connection closed");
+    socket.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
   };
 
   const setColorCounters = () => {
