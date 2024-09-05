@@ -34,13 +34,8 @@ func verifyHCaptcha(token string) error {
 	defer resp.Body.Close()
 
 	var result struct {
-		Success     bool     `json:"success"`
-		ChallengeTs string   `json:"challenge_ts"`
-		Hostname    string   `json:"hostname"`
-		Credit      string   `json:"credit"`
-		Errors      []string `json:"error-codes"`
-		Score       float64  `json:"score"`
-		ScoreReason string   `json:"score_reason"`
+		Success bool     `json:"success"`
+		Errors  []string `json:"error-codes"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
@@ -48,7 +43,7 @@ func verifyHCaptcha(token string) error {
 	}
 
 	if !result.Success {
-		return fmt.Errorf("hCaptcha verification failed")
+		return fmt.Errorf("hCaptcha verification failed, Errors: %+v", result.Errors)
 	}
 
 	return nil
