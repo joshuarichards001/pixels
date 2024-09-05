@@ -42,13 +42,13 @@ func (server *Server) cleanupRateLimits() {
 	now := time.Now()
 	cutoff := now.Add(-10 * time.Minute)
 
-	server.rateLimits.Range(func(key, value interface{}) bool {
+	server.rateLimits.Range(func(ip, value interface{}) bool {
 		ipPixelUpdateTimes := value.(*RateLimitData)
 		ipPixelUpdateTimes.mu.Lock()
 		defer ipPixelUpdateTimes.mu.Unlock()
 
 		if len(ipPixelUpdateTimes.timestamps) == 0 || ipPixelUpdateTimes.timestamps[len(ipPixelUpdateTimes.timestamps)-1].Before(cutoff) {
-			server.rateLimits.Delete(key)
+			server.rateLimits.Delete(ip)
 		}
 
 		return true
