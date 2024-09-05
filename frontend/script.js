@@ -47,14 +47,11 @@ window.onload = () => {
   selectedButton.classList.add("selected");
 
   window.connectToWebsocket = function (hCaptchaToken) {
-    const socket = new WebSocket("wss://websocket.tenthousandpixels.com/ws", [
-      "Authorization",
+    const socket = new WebSocket(
+      "wss://websocket.tenthousandpixels.com/ws",
       hCaptchaToken,
-    ]);
-    // const socket = new WebSocket("ws://localhost:8080/ws", [
-    //   "Authorization",
-    //   hCaptchaToken,
-    // ]);
+    );
+    // const socket = new WebSocket("ws://localhost:8080/ws");
 
     socket.onopen = () => {
       console.log("WebSocket connection established");

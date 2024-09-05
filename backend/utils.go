@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -20,10 +21,12 @@ func loadEnv() {
 }
 
 func verifyHCaptcha(token string) error {
-	resp, err := http.PostForm("https://hcaptcha.com/siteverify", map[string][]string{
+	values := url.Values{
 		"response": {token},
 		"secret":   {os.Getenv("HCAPTCHA_SECRET")},
-	})
+	}
+
+	resp, err := http.PostForm("https://hcaptcha.com/siteverify", values)
 
 	if err != nil {
 		return fmt.Errorf("error verifying hCaptcha: %v", err)

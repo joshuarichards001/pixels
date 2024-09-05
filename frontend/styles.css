@@ -13,7 +13,7 @@ header {
   gap: 10px;
 }
 
-section {
+main {
   display: flex;
   flex-direction: column;
   align-items: center;

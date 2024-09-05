@@ -88,7 +88,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
-	hCaptchaToken := r.Header.Get("Sec-WebSocket-Key")
+	hCaptchaToken := r.Header.Get("Sec-WebSocket-Protocol")
 	if err := verifyHCaptcha(hCaptchaToken); err != nil {
 		log.Printf("error verifying hCaptcha: %v", err)
 		http.Error(w, "could not verify hCaptcha", http.StatusUnauthorized)
