@@ -95,7 +95,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(w, r, http.Header{"Sec-WebSocket-Protocol": {hCaptchaToken}})
 	if err != nil {
 		log.Printf("error upgrading connection: %v", err)
 		http.Error(w, "could not open websocket connection", http.StatusInternalServerError)
