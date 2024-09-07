@@ -45,16 +45,19 @@
       <div class="color-counter-container"></div>
       <div class="canvas-container">
         <div id="loading" class="loading">
-          <form action="/" method="POST">
-            <div
-              class="h-captcha"
-              data-sitekey="f15eb5e6-d9de-4c06-a610-4c5efcaa3ee4"
-              data-callback="connectToWebsocket"
-            ></div>
-          </form>
+          <img src="loading.svg" alt="Loading" />
         </div>
         <canvas id="canvas"></canvas>
-        <span id="disconnect" class="disconnect">Disconnected</span>
+        <form action="/" method="POST">
+          <div
+            id="captcha"
+            class="h-captcha captcha"
+            data-sitekey="f15eb5e6-d9de-4c06-a610-4c5efcaa3ee4"
+            data-callback="connectToWebsocket"
+          ></div>
+        </form>
+        <span id="disconnect" class="popup disconnect">Disconnected</span>
+        <span id="connect-message" class="popup connect">Do Captcha to see live updates</span>
         <div class="zoom-controls">
           <button id="zoom-in">+</button>
           <button id="zoom-out">-</button>

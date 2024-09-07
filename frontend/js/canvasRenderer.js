@@ -2,6 +2,10 @@ import { colorMap } from "./constants.js";
 
 class CanvasRenderer {
   constructor(canvas) {
+    document.getElementById("loading").remove();
+    document.getElementById("captcha").style.display = "block";
+    document.getElementById("canvas").style.display = "block";
+
     this.canvas = canvas;
 
     const canvasSize = Math.min(window.innerWidth - 50, 500);

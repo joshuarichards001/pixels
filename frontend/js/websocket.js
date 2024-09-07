@@ -11,6 +11,7 @@ export const handleWebsocket = (
 ) => {
   const socket = new WebSocket(websocketUrl, hCaptchaToken);
   const loading = document.getElementById("loading");
+  const captcha = document.getElementById("captcha");
 
   socket.onopen = () => {
     console.log("WebSocket connection established");
@@ -32,7 +33,7 @@ export const handleWebsocket = (
 
     if (messageData.type === "initial") {
       newPixelData = messageData.data;
-      loading.style.display = "none";
+      captcha.remove();
       canvas.style.display = "block";
     } else if (messageData.type === "update") {
       const pixelData = getPixelData();

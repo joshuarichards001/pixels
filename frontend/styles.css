@@ -46,17 +46,26 @@ canvas {
   display: none;
 }
 
-.disconnect {
-  display: none;
+.popup {
   position: absolute;
+  width: max-content;
+  font-size: 12px;
   top: 20px;
   left: 50%;
   transform: translate(-50%);
-  background-color: #cc421d;
-  color: #ffffff;
   padding: 4px 12px;
   border-radius: 999px;
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+.disconnect {
+  display: none;
+  background-color: #cc421d;
+}
+
+.connect {
+  background-color: #1d70a2;
 }
 
 .zoom-controls {
@@ -112,6 +121,14 @@ canvas {
   height: 500px;
   max-width: calc(100vw - 50px);
   max-height: calc(100vw - 50px);
+}
+
+.captcha {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .color-button-container {

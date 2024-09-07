@@ -179,6 +179,37 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (server *Server) handleGetPixels(w http.ResponseWriter, _ *http.Request) {
+	pixelsData, err := server.redisClient.Get(server.ctx, "pixels").Result()
+	if err != nil {
+		log.Printf("error getting pixels data from Redis: %v", err)
+		http.Error(w, "could not retrieve pixels data", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(pixelsData))
+}
+
+func getAllowedOrigin() string {
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "development" {
+		return "http://127.0.0.1:5500"
+	} else {
+		return "https://tenthousandpixels.com"
+	}
+}
+
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", getAllowedOrigin())
+		w.Header().Set("Access-Control-Allow-Methods", "GET")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		next(w, r)
+	}
+}
+
 func (server *Server) countClients() int {
 	count := 0
 	server.clients.Range(func(key, value interface{}) bool {
