@@ -11,7 +11,7 @@ export const colorMap = {
   9: "#000000", // black
 };
 
-const production = true;
+const production = false;
 
 export const websocketUrl = production
   ? "wss://websocket.tenthousandpixels.com/ws"
