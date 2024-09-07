@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
@@ -116,6 +117,11 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		server.checkAndUpdateClientCount(ip, false)
 		conn.Close()
 	}()
+
+	time.AfterFunc(10*time.Minute, func() {
+		server.unregister <- conn
+		conn.Close()
+	})
 
 	initialData, err := server.redisClient.Get(server.ctx, "pixels").Result()
 	if err != nil {
