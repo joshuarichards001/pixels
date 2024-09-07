@@ -76,7 +76,7 @@ class CanvasRenderer {
     const pixelY = Math.floor((y - 4 + this.offsetY) / this.pixelSize);
     const index = pixelY * this.gridSize + pixelX;
 
-    if (index < 0 && index >= 10000) {
+    if (index < 0 || index >= 10000) {
       return;
     }
 
@@ -85,6 +85,10 @@ class CanvasRenderer {
     }
 
     if (this.#isRateLimited()) {
+      return;
+    }
+
+    if (socket.readyState !== WebSocket.OPEN) {
       return;
     }
 
