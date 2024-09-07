@@ -120,6 +120,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 
 	time.AfterFunc(10*time.Minute, func() {
 		server.unregister <- conn
+		server.checkAndUpdateClientCount(ip, false)
 		conn.Close()
 	})
 
