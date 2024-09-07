@@ -63,7 +63,7 @@ func (server *Server) checkAndUpdateClientCount(ip string, increment bool) bool 
 	defer rateLimitData.mu.Unlock()
 
 	if increment {
-		if rateLimitData.clientCount >= 3 {
+		if rateLimitData.clientCount >= 5 {
 			log.Printf("IP %s hit client count limit", ip)
 			return false
 		}
