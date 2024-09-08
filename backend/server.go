@@ -22,55 +22,60 @@ func newServer() *Server {
 	})
 
 	return &Server{
-		broadcast:   make(chan IncomingMessage),
-		register:    make(chan *websocket.Conn),
-		unregister:  make(chan *websocket.Conn),
+		broadcast:   make(chan IncomingMessage, 100000),
+		register:    make(chan *websocket.Conn, 10000),
+		unregister:  make(chan *websocket.Conn, 10000),
 		redisClient: rdb,
 		ctx:         ctx,
 	}
 }
 
 func (server *Server) run() {
-	for {
-		select {
-		case client := <-server.register:
-			server.clients.Store(client, true)
-		case client := <-server.unregister:
-			server.clients.Delete(client)
-			client.Close()
-		case update := <-server.broadcast:
-			err := server.redisClient.SetRange(server.ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
-			if err != nil {
-				log.Printf("error updating Redis: %v", err)
-				continue
-			}
+	go server.handleBroadcasts()
+	go server.handleRegistrations()
+	go server.handleUnregistrations()
+}
 
-			_, err = server.redisClient.Get(server.ctx, "pixels").Result()
-			if err != nil {
-				log.Printf("error getting data from Redis: %v", err)
-				continue
-			}
-
-			clientCount := server.countClients()
-
-			msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: clientCount}
-			jsonMsg, err := json.Marshal(msg)
-			if err != nil {
-				log.Printf("error marshaling json: %v", err)
-				continue
-			}
-
-			server.clients.Range(func(key, value interface{}) bool {
-				client := key.(*websocket.Conn)
-				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-				if err != nil {
-					log.Printf("error sending message to client: %v", err)
-					client.Close()
-					server.clients.Delete(client)
-				}
-				return true
-			})
+func (server *Server) handleBroadcasts() {
+	for update := range server.broadcast {
+		err := server.redisClient.SetRange(server.ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
+		if err != nil {
+			log.Printf("error updating Redis: %v", err)
+			continue
 		}
+
+		clientCount := server.countClients()
+
+		msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: clientCount}
+		jsonMsg, err := json.Marshal(msg)
+		if err != nil {
+			log.Printf("error marshaling json: %v", err)
+			continue
+		}
+
+		server.clients.Range(func(key, value interface{}) bool {
+			client := key.(*websocket.Conn)
+			err := client.WriteMessage(websocket.TextMessage, jsonMsg)
+			if err != nil {
+				log.Printf("error sending message to client: %v", err)
+				client.Close()
+				server.clients.Delete(client)
+			}
+			return true
+		})
+	}
+}
+
+func (server *Server) handleRegistrations() {
+	for client := range server.register {
+		server.clients.Store(client, true)
+	}
+}
+
+func (server *Server) handleUnregistrations() {
+	for client := range server.unregister {
+		server.clients.Delete(client)
+		client.Close()
 	}
 }
 
@@ -216,5 +221,6 @@ func (server *Server) countClients() int {
 		count++
 		return true
 	})
+	log.Printf("Client count: %d", count)
 	return count
 }
