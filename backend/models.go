@@ -17,6 +17,8 @@ type Server struct {
 	redisClient *redis.Client
 	ctx         context.Context
 	rateLimits  sync.Map
+	writeMutex  sync.Mutex
+	clientMutex sync.Mutex
 }
 
 type InitialMessage struct {
@@ -42,7 +44,7 @@ type UpdatedColor struct {
 }
 
 type RateLimitData struct {
-	mu         sync.Mutex
-	timestamps []time.Time
+	mu          sync.Mutex
+	timestamps  []time.Time
 	clientCount int
 }

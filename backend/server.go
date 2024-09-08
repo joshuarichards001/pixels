@@ -55,7 +55,9 @@ func (server *Server) handleBroadcasts() {
 
 		server.clients.Range(func(key, value interface{}) bool {
 			client := key.(*websocket.Conn)
+			server.writeMutex.Lock()
 			err := client.WriteMessage(websocket.TextMessage, jsonMsg)
+			server.writeMutex.Unlock()
 			if err != nil {
 				log.Printf("error sending message to client: %v", err)
 				client.Close()
@@ -68,14 +70,18 @@ func (server *Server) handleBroadcasts() {
 
 func (server *Server) handleRegistrations() {
 	for client := range server.register {
+		server.clientMutex.Lock()
 		server.clients.Store(client, true)
+		server.clientMutex.Unlock()
 	}
 }
 
 func (server *Server) handleUnregistrations() {
 	for client := range server.unregister {
+		server.clientMutex.Lock()
 		server.clients.Delete(client)
 		client.Close()
+		server.clientMutex.Unlock()
 	}
 }
 
@@ -144,7 +150,9 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	server.writeMutex.Lock()
 	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
+	server.writeMutex.Unlock()
 	if err != nil {
 		log.Printf("error sending initial message: %v", err)
 		return
@@ -163,18 +171,24 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
+			server.writeMutex.Lock()
 			conn.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
+			server.writeMutex.Unlock()
 			continue
 		}
 
 		if err := validateIncomingMessage(update); err != nil {
 			log.Printf("Invalid update message from client: %v", err)
+			server.writeMutex.Lock()
 			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
+			server.writeMutex.Unlock()
 			continue
 		}
 
 		if !server.checkRateLimit(ip) {
+			server.writeMutex.Lock()
 			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
+			server.writeMutex.Unlock()
 			continue
 		}
 
