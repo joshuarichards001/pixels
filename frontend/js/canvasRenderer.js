@@ -123,7 +123,7 @@ class CanvasRenderer {
 
     if (
       this.pixelUpdateTimestamps.filter((timestamp) => now - timestamp < 5000)
-        .length >= 20
+        .length >= 10
     ) {
       return true;
     }
