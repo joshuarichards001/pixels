@@ -58,8 +58,7 @@ export const handleWebsocket = (
 
   socket.onclose = () => {
     console.log("WebSocket connection closed");
-    const disconnect = document.getElementById("disconnect");
-    disconnect.style.display = "inline";
+    document.getElementById("disconnect").style.display = "inline";
   };
 
   setSocket(socket);

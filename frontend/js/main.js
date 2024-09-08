@@ -16,6 +16,8 @@ window.onload = async () => {
   const response = await fetch(pixelsUrl);
   let pixelData = await response.text();
 
+  document.getElementById("connect-message").style.display = "inline";
+
   const getPixelData = () => pixelData;
   const setPixelData = (newPixelData) => {
     pixelData = newPixelData;
