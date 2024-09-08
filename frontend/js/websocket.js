@@ -24,7 +24,8 @@ export const handleWebsocket = (
     }
 
     if (event.data === "client limit exceeded") {
-      loading.style.display = "block";
+      canvas.style.display = "none";
+      loading.style.display = "flex";
       loading.textContent = "Client limit exceeded. Please try again later.";
       return;
     }
@@ -54,8 +55,9 @@ export const handleWebsocket = (
 
   socket.onerror = (error) => {
     console.error("WebSocket error:", error);
-    loading.style.display = "block";
-    loading.textContent = "Error connecting to server. Please try again later.";
+    canvas.style.display = "none";
+    loading.style.display = "flex";
+    loading.textContent = "Error connecting to server. Refresh and try again.";
   };
 
   socket.onclose = () => {
