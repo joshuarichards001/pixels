@@ -22,7 +22,7 @@ func (server *Server) checkRateLimit(ip string) bool {
 		}
 	}
 
-	if len(updatesInTimeLimit) >= 10 {
+	if len(updatesInTimeLimit) >= 20 {
 		log.Printf("IP %s hit pixel update rate limit", ip)
 		ipPixelUpdateTimes.timestamps = updatesInTimeLimit
 		return false
