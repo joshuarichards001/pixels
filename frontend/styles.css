@@ -17,6 +17,11 @@ main {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 40px;
+}
+
+footer {
+  text-align: center;
 }
 
 h1 {
@@ -180,10 +185,6 @@ canvas {
 }
 .color-button[data-color="#000000"] {
   background-color: #000000;
-}
-
-.pixel-count {
-  margin-bottom: 40px;
 }
 
 @media (max-width: 550px) {
