@@ -2,7 +2,7 @@ import { colorMap } from "./constants.js";
 
 class CanvasRenderer {
   constructor(canvas) {
-    document.getElementById("loading").remove();
+    document.getElementById("loading").style.display = "none";
     document.getElementById("captcha").style.display = "block";
     document.getElementById("canvas").style.display = "block";
 
