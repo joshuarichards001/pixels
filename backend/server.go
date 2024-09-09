@@ -129,7 +129,7 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		conn.Close()
 	}()
 
-	time.AfterFunc(10*time.Minute, func() {
+	time.AfterFunc(30*time.Minute, func() {
 		server.unregister <- conn
 		server.checkAndUpdateClientCount(ip, false)
 		conn.Close()
@@ -235,6 +235,5 @@ func (server *Server) countClients() int {
 		count++
 		return true
 	})
-	log.Printf("Client count: %d", count)
 	return count
 }
