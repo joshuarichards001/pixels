@@ -7,8 +7,11 @@ A real-time collaborative pixel art canvas where users can draw pixels and see l
   - CSS
   - JavaScript
   - HTML5 Canvas
+  - Hosted using Vercel
 - Backend
   - Go
   - Websockets
+  - Hosted using fly.io
 - Data storage
   - Redis
+  - Hosted using Redis
