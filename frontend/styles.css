@@ -50,6 +50,7 @@ canvas {
   background-color: #cccccc;
   display: none;
   user-select: none;
+  -webkit-user-select: none;
 }
 
 .popup {
