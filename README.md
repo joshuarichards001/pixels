@@ -9,6 +9,8 @@ A real-time collaborative pixel art canvas where users can draw pixels and see l
   - HTML5 Canvas
 - Backend
   - Go
-  - Websocket's
+  - Websocket
 - Data storage
   - Redis
+
+Deployed using Vercel, fly.io, and Managed Redis.
