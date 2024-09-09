@@ -49,6 +49,7 @@ canvas {
   cursor: crosshair;
   background-color: #cccccc;
   display: none;
+  user-select: none;
 }
 
 .popup {
