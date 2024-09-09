@@ -2,6 +2,8 @@
 
 A real-time collaborative pixel art canvas where users can draw pixels and see live updates (similar to Reddit's r/place)
 
+![Project Image](./readme-picture.png)
+
 - Frontend
   - HTML
   - CSS
