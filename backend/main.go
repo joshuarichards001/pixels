@@ -23,11 +23,11 @@ func runHTTPServer(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		fmt.Println("Server is shutting down")
+		log.Println("Server is shutting down")
 		shutdown <- server.Shutdown(ctx)
 	}()
 
-	fmt.Println("Server is running on :8080")
+	log.Println("Server is running on :8080")
 	err := server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("listen and serve: %w", err)
