@@ -1,15 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 )
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	loadEnv()
 	server := newServer()
-	go server.run()
+	go server.run(ctx)
 
 	http.HandleFunc("/ws", server.handleConnections)
 	http.HandleFunc("/pixels", corsMiddleware(server.handleGetPixels))

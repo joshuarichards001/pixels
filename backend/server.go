@@ -14,7 +14,6 @@ import (
 )
 
 func newServer() *Server {
-	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDRESS"),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -26,17 +25,16 @@ func newServer() *Server {
 		register:    make(chan *websocket.Conn, 10000),
 		unregister:  make(chan *websocket.Conn, 10000),
 		redisClient: rdb,
-		ctx:         ctx,
 	}
 }
 
-func (server *Server) run() {
-	go server.handleBroadcasts()
-	go server.handleRegistrations()
-	go server.handleUnregistrations()
+func (server *Server) run(ctx context.Context) {
+	go server.handleBroadcasts(ctx)
+	go server.handleRegistrations(ctx)
+	go server.handleUnregistrations(ctx)
 }
 
-func (server *Server) handleBroadcasts() {
+func (server *Server) handleBroadcasts(ctx context.Context) {
 	for update := range server.broadcast {
 		err := server.redisClient.SetRange(server.ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
 		if err != nil {
@@ -68,7 +66,7 @@ func (server *Server) handleBroadcasts() {
 	}
 }
 
-func (server *Server) handleRegistrations() {
+func (server *Server) handleRegistrations(ctx context.Context) {
 	for client := range server.register {
 		server.clientMutex.Lock()
 		server.clients.Store(client, true)
@@ -76,7 +74,7 @@ func (server *Server) handleRegistrations() {
 	}
 }
 
-func (server *Server) handleUnregistrations() {
+func (server *Server) handleUnregistrations(ctx context.Context) {
 	for client := range server.unregister {
 		server.clientMutex.Lock()
 		server.clients.Delete(client)
