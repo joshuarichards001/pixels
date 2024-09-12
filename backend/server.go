@@ -15,13 +15,13 @@ import (
 )
 
 type Server struct {
-	broadcast   chan IncomingMessage
-	register    chan *websocket.Conn
-	unregister  chan *websocket.Conn
-	numclients  chan int
+	broadcast  chan IncomingMessage
+	register   chan *Client
+	unregister chan *Client
+	numclients chan int
+
 	redisClient *redis.Client
 	rateLimits  sync.Map
-	writeMutex  sync.Mutex
 }
 
 func NewServer() *Server {
@@ -33,15 +33,15 @@ func NewServer() *Server {
 
 	return &Server{
 		broadcast:   make(chan IncomingMessage, 100000),
-		register:    make(chan *websocket.Conn, 10000),
-		unregister:  make(chan *websocket.Conn, 10000),
+		register:    make(chan *Client, 10000),
+		unregister:  make(chan *Client, 10000),
 		numclients:  make(chan int),
 		redisClient: rdb,
 	}
 }
 
 func (server *Server) Run(ctx context.Context) {
-	clients := make(map[*websocket.Conn]struct{})
+	clients := make(map[*Client]struct{})
 
 	for {
 		select {
@@ -63,9 +63,7 @@ func (server *Server) Run(ctx context.Context) {
 			}
 
 			for client := range clients {
-				server.writeMutex.Lock()
 				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-				server.writeMutex.Unlock()
 				if err != nil {
 					log.Printf("error sending message to client: %v", err)
 					client.Close()
@@ -113,26 +111,27 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		http.Error(rw, "could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
+	client := NewClient(conn)
 
 	ip := getIP(req)
 	if !server.checkAndUpdateClientCount(ip, true) {
-		conn.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
-		conn.Close()
+		client.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
+		client.Close()
 		return
 	}
 
-	server.register <- conn
+	server.register <- client
 
 	defer func() {
-		server.unregister <- conn
+		server.unregister <- client
 		server.checkAndUpdateClientCount(ip, false)
-		conn.Close()
+		client.Close()
 	}()
 
 	time.AfterFunc(30*time.Minute, func() {
-		server.unregister <- conn
+		server.unregister <- client
 		server.checkAndUpdateClientCount(ip, false)
-		conn.Close()
+		client.Close()
 	})
 
 	initialData, err := server.redisClient.Get(req.Context(), "pixels").Result()
@@ -148,16 +147,14 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	server.writeMutex.Lock()
-	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
-	server.writeMutex.Unlock()
+	err = client.WriteMessage(websocket.TextMessage, jsonMsg)
 	if err != nil {
 		log.Printf("error sending initial message: %v", err)
 		return
 	}
 
 	for {
-		_, msgBytes, err := conn.ReadMessage()
+		_, msgBytes, err := client.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error reading message: %v", err)
@@ -169,24 +166,18 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
 			continue
 		}
 
 		if err := validateIncomingMessage(update); err != nil {
 			log.Printf("Invalid update message from client: %v", err)
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
 			continue
 		}
 
 		if !server.checkRateLimit(ip) {
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
 			continue
 		}
 
