@@ -24,7 +24,7 @@ type Server struct {
 	writeMutex  sync.Mutex
 }
 
-func newServer() *Server {
+func NewServer() *Server {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDRESS"),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -40,7 +40,7 @@ func newServer() *Server {
 	}
 }
 
-func (server *Server) run(ctx context.Context) {
+func (server *Server) Run(ctx context.Context) {
 	clients := make(map[*websocket.Conn]struct{})
 
 	for {

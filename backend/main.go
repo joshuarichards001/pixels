@@ -46,8 +46,8 @@ func main() {
 	defer cancel()
 
 	loadEnv()
-	server := newServer()
-	go server.run(ctx)
+	server := NewServer()
+	go server.Run(ctx)
 
 	http.HandleFunc("/ws", server.handleConnections)
 	http.HandleFunc("/pixels", corsMiddleware(server.handleGetPixels))
