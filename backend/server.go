@@ -7,14 +7,24 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 )
 
-func newServer() *Server {
-	ctx := context.Background()
+type Server struct {
+	broadcast  chan IncomingMessage
+	register   chan *Client
+	unregister chan *Client
+	numclients chan int
+
+	redisClient *redis.Client
+	rateLimits  sync.Map
+}
+
+func NewServer() *Server {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDRESS"),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -23,65 +33,53 @@ func newServer() *Server {
 
 	return &Server{
 		broadcast:   make(chan IncomingMessage, 100000),
-		register:    make(chan *websocket.Conn, 10000),
-		unregister:  make(chan *websocket.Conn, 10000),
+		register:    make(chan *Client, 10000),
+		unregister:  make(chan *Client, 10000),
+		numclients:  make(chan int),
 		redisClient: rdb,
-		ctx:         ctx,
 	}
 }
 
-func (server *Server) run() {
-	go server.handleBroadcasts()
-	go server.handleRegistrations()
-	go server.handleUnregistrations()
-}
+func (server *Server) Run(ctx context.Context) {
+	clients := make(map[*Client]struct{})
 
-func (server *Server) handleBroadcasts() {
-	for update := range server.broadcast {
-		err := server.redisClient.SetRange(server.ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
-		if err != nil {
-			log.Printf("error updating Redis: %v", err)
-			continue
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			return
 
-		clientCount := server.countClients()
-
-		msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: clientCount}
-		jsonMsg, err := json.Marshal(msg)
-		if err != nil {
-			log.Printf("error marshaling json: %v", err)
-			continue
-		}
-
-		server.clients.Range(func(key, value interface{}) bool {
-			client := key.(*websocket.Conn)
-			server.writeMutex.Lock()
-			err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-			server.writeMutex.Unlock()
+		case update := <-server.broadcast:
+			err := server.redisClient.SetRange(ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
 			if err != nil {
-				log.Printf("error sending message to client: %v", err)
-				client.Close()
-				server.clients.Delete(client)
+				log.Printf("error updating Redis: %v", err)
+				continue
 			}
-			return true
-		})
-	}
-}
 
-func (server *Server) handleRegistrations() {
-	for client := range server.register {
-		server.clientMutex.Lock()
-		server.clients.Store(client, true)
-		server.clientMutex.Unlock()
-	}
-}
+			msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: len(clients)}
+			jsonMsg, err := json.Marshal(msg)
+			if err != nil {
+				log.Printf("error marshaling json: %v", err)
+				continue
+			}
 
-func (server *Server) handleUnregistrations() {
-	for client := range server.unregister {
-		server.clientMutex.Lock()
-		server.clients.Delete(client)
-		client.Close()
-		server.clientMutex.Unlock()
+			for client := range clients {
+				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
+				if err != nil {
+					log.Printf("error sending message to client: %v", err)
+					client.Close()
+					delete(clients, client)
+				}
+			}
+
+		case client := <-server.register:
+			clients[client] = struct{}{}
+
+		case client := <-server.unregister:
+			delete(clients, client)
+			client.Close()
+
+		case server.numclients <- len(clients):
+		}
 	}
 }
 
@@ -99,67 +97,64 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) {
-	hCaptchaToken := r.Header.Get("Sec-WebSocket-Protocol")
+func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Request) {
+	hCaptchaToken := req.Header.Get("Sec-WebSocket-Protocol")
 	if err := verifyHCaptcha(hCaptchaToken); err != nil {
 		log.Printf("error verifying hCaptcha: %v", err)
-		http.Error(w, "could not verify hCaptcha", http.StatusUnauthorized)
+		http.Error(rw, "could not verify hCaptcha", http.StatusUnauthorized)
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, http.Header{"Sec-WebSocket-Protocol": {hCaptchaToken}})
+	conn, err := upgrader.Upgrade(rw, req, http.Header{"Sec-WebSocket-Protocol": {hCaptchaToken}})
 	if err != nil {
 		log.Printf("error upgrading connection: %v", err)
-		http.Error(w, "could not open websocket connection", http.StatusInternalServerError)
+		http.Error(rw, "could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
+	client := NewClient(conn)
 
-	ip := getIP(r)
+	ip := getIP(req)
 	if !server.checkAndUpdateClientCount(ip, true) {
-		conn.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
-		conn.Close()
+		client.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
+		client.Close()
 		return
 	}
 
-	server.register <- conn
+	server.register <- client
 
 	defer func() {
-		server.unregister <- conn
+		server.unregister <- client
 		server.checkAndUpdateClientCount(ip, false)
-		conn.Close()
+		client.Close()
 	}()
 
 	time.AfterFunc(30*time.Minute, func() {
-		server.unregister <- conn
+		server.unregister <- client
 		server.checkAndUpdateClientCount(ip, false)
-		conn.Close()
+		client.Close()
 	})
 
-	initialData, err := server.redisClient.Get(server.ctx, "pixels").Result()
+	initialData, err := server.redisClient.Get(req.Context(), "pixels").Result()
 	if err != nil {
 		log.Printf("error getting initial data from Redis: %v", err)
 		return
 	}
 
-	clientCount := server.countClients()
-
-	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: clientCount}
+	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: <-server.numclients}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling initial JSON: %v", err)
 		return
 	}
 
-	server.writeMutex.Lock()
-	err = conn.WriteMessage(websocket.TextMessage, jsonMsg)
-	server.writeMutex.Unlock()
+	err = client.WriteMessage(websocket.TextMessage, jsonMsg)
 	if err != nil {
 		log.Printf("error sending initial message: %v", err)
 		return
 	}
 
 	for {
-		_, msgBytes, err := conn.ReadMessage()
+		_, msgBytes, err := client.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error reading message: %v", err)
@@ -171,24 +166,18 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 		err = json.Unmarshal(msgBytes, &update)
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte("Invalid input type"))
 			continue
 		}
 
 		if err := validateIncomingMessage(update); err != nil {
 			log.Printf("Invalid update message from client: %v", err)
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("Error: %v", err)))
 			continue
 		}
 
 		if !server.checkRateLimit(ip) {
-			server.writeMutex.Lock()
-			conn.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-			server.writeMutex.Unlock()
+			client.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
 			continue
 		}
 
@@ -198,17 +187,17 @@ func (server *Server) handleConnections(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (server *Server) handleGetPixels(w http.ResponseWriter, _ *http.Request) {
-	pixelsData, err := server.redisClient.Get(server.ctx, "pixels").Result()
+func (server *Server) handleGetPixels(rw http.ResponseWriter, req *http.Request) {
+	pixelsData, err := server.redisClient.Get(req.Context(), "pixels").Result()
 	if err != nil {
 		log.Printf("error getting pixels data from Redis: %v", err)
-		http.Error(w, "could not retrieve pixels data", http.StatusInternalServerError)
+		http.Error(rw, "could not retrieve pixels data", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(pixelsData))
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte(pixelsData))
 }
 
 func getAllowedOrigin() string {
@@ -227,13 +216,4 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		next(w, r)
 	}
-}
-
-func (server *Server) countClients() int {
-	count := 0
-	server.clients.Range(func(key, value interface{}) bool {
-		count++
-		return true
-	})
-	return count
 }

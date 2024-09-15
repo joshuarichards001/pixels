@@ -1,25 +1,9 @@
 package main
 
 import (
-	"context"
 	"sync"
 	"time"
-
-	"github.com/go-redis/redis/v8"
-	"github.com/gorilla/websocket"
 )
-
-type Server struct {
-	clients     sync.Map
-	broadcast   chan IncomingMessage
-	register    chan *websocket.Conn
-	unregister  chan *websocket.Conn
-	redisClient *redis.Client
-	ctx         context.Context
-	rateLimits  sync.Map
-	writeMutex  sync.Mutex
-	clientMutex sync.Mutex
-}
 
 type InitialMessage struct {
 	Type        string `json:"type"`
