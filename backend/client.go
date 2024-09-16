@@ -126,8 +126,7 @@ func (cm *clientManager) send(ctx context.Context, update broadcast) {
 		err := client.WriteMessage(websocket.TextMessage, jsonMsg)
 		if err != nil {
 			log.Printf("error sending message to client: %v", err)
-			client.Close()
-			delete(cm.clients, client)
+			cm.remove(client)
 		}
 	}
 }
