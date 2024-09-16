@@ -3,25 +3,31 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"net/netip"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
 )
 
 type Server struct {
-	broadcast  chan IncomingMessage
-	register   chan *Client
+	broadcast  chan broadcast[IncomingMessage]
+	register   chan registration
 	unregister chan *Client
 	numclients chan int
 
 	redisClient *redis.Client
-	rateLimits  sync.Map
+}
+
+type registration struct {
+	client *Client
+	rsp    chan error
 }
 
 func NewServer() *Server {
@@ -32,9 +38,9 @@ func NewServer() *Server {
 	})
 
 	return &Server{
-		broadcast:   make(chan IncomingMessage, 100000),
-		register:    make(chan *Client, 10000),
-		unregister:  make(chan *Client, 10000),
+		broadcast:   make(chan broadcast[IncomingMessage]),
+		register:    make(chan registration),
+		unregister:  make(chan *Client),
 		numclients:  make(chan int),
 		redisClient: rdb,
 	}
@@ -43,19 +49,32 @@ func NewServer() *Server {
 func (server *Server) Run(ctx context.Context) {
 	clients := make(map[*Client]struct{})
 
+	type rateLimitData struct {
+		clients int
+		limiter *rate.Limiter
+	}
+	rateLimits := make(map[netip.Addr]*rateLimitData)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 
 		case update := <-server.broadcast:
-			err := server.redisClient.SetRange(ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
+			if !rateLimits[update.src.Addr].limiter.Allow() {
+				update.src.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
+				continue
+			}
+
+			log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.msg.Data.Index, update.msg.Data.Color, update.src.Addr)
+
+			err := server.redisClient.SetRange(ctx, "pixels", int64(update.msg.Data.Index), update.msg.Data.Color).Err()
 			if err != nil {
 				log.Printf("error updating Redis: %v", err)
 				continue
 			}
 
-			msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: len(clients)}
+			msg := OutgoingMessage{Type: "update", Data: update.msg.Data, ClientCount: len(clients)}
 			jsonMsg, err := json.Marshal(msg)
 			if err != nil {
 				log.Printf("error marshaling json: %v", err)
@@ -71,12 +90,38 @@ func (server *Server) Run(ctx context.Context) {
 				}
 			}
 
-		case client := <-server.register:
+		case r := <-server.register:
+			client := r.client
+			limit := rateLimits[client.Addr]
+			if limit == nil {
+				limit = &rateLimitData{
+					clients: 1, limiter: rate.NewLimiter(rate.Every(time.Second), 5),
+				}
+				rateLimits[client.Addr] = limit
+				continue
+			}
+			if limit.clients >= 5 {
+				r.rsp <- errors.New("too many clients with IP")
+				continue
+			}
+			limit.clients++
 			clients[client] = struct{}{}
 
+			r.rsp <- nil
+
 		case client := <-server.unregister:
+			if _, ok := clients[client]; !ok {
+				continue
+			}
+
 			delete(clients, client)
 			client.Close()
+
+			limit := rateLimits[client.Addr]
+			limit.clients--
+			if limit.clients <= 0 {
+				delete(rateLimits, client.Addr)
+			}
 
 		case server.numclients <- len(clients):
 		}
@@ -111,28 +156,28 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		http.Error(rw, "could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
-	client := NewClient(conn)
+	addr, ok := getIP(req, conn)
+	if !ok {
+		log.Printf("could not determine identifiable IP address for connection from %v", req.RemoteAddr)
+		http.Error(rw, "could not determine necessary information", http.StatusInternalServerError)
+		return
+	}
+	client := Client{
+		Conn: conn,
+		Addr: addr,
+	}
 
-	ip := getIP(req)
-	if !server.checkAndUpdateClientCount(ip, true) {
+	regrsp := make(chan error)
+	server.register <- registration{client: &client, rsp: regrsp}
+	err = <-regrsp
+	if err != nil {
 		client.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
 		client.Close()
 		return
 	}
-
-	server.register <- client
-
 	defer func() {
-		server.unregister <- client
-		server.checkAndUpdateClientCount(ip, false)
-		client.Close()
+		server.unregister <- &client
 	}()
-
-	time.AfterFunc(30*time.Minute, func() {
-		server.unregister <- client
-		server.checkAndUpdateClientCount(ip, false)
-		client.Close()
-	})
 
 	initialData, err := server.redisClient.Get(req.Context(), "pixels").Result()
 	if err != nil {
@@ -176,15 +221,16 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 			continue
 		}
 
-		if !server.checkRateLimit(ip) {
-			client.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-			continue
+		server.broadcast <- broadcast[IncomingMessage]{
+			src: &client,
+			msg: update,
 		}
-
-		log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.Data.Index, update.Data.Color, ip)
-
-		server.broadcast <- update
 	}
+}
+
+type broadcast[T any] struct {
+	src *Client
+	msg T
 }
 
 func (server *Server) handleGetPixels(rw http.ResponseWriter, req *http.Request) {

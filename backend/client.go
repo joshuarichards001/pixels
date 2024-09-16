@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/netip"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -10,13 +11,9 @@ import (
 // WriteMessage.
 type Client struct {
 	*websocket.Conn
-	m sync.Mutex
-}
+	Addr netip.Addr
 
-func NewClient(conn *websocket.Conn) *Client {
-	return &Client{
-		Conn: conn,
-	}
+	m sync.Mutex
 }
 
 func (c *Client) WriteMessage(messageType int, data []byte) error {
