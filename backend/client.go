@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -40,12 +41,22 @@ type broadcast struct {
 	msg IncomingMessage
 }
 
+type rateLimitData struct {
+	clients int
+	limiter *rate.Limiter
+}
+
 type clientManager struct {
-	done       chan struct{}
+	running atomic.Bool
+	done    chan struct{}
+
 	broadcast  chan broadcast
 	register   chan registration
 	unregister chan *Client
 	numclients chan int
+
+	clients    map[*Client]struct{}
+	rateLimits map[netip.Addr]*rateLimitData
 
 	redisClient *redis.Client
 }
@@ -58,25 +69,18 @@ func newClientManager(rc *redis.Client) *clientManager {
 		unregister: make(chan *Client),
 		numclients: make(chan int),
 
+		clients:    make(map[*Client]struct{}),
+		rateLimits: make(map[netip.Addr]*rateLimitData),
+
 		redisClient: rc,
 	}
 }
 
 func (cm *clientManager) Run(ctx context.Context) {
-	select {
-	case <-cm.done:
+	if cm.running.Swap(true) {
 		panic("manager has already been run")
-	default:
 	}
 	defer close(cm.done)
-
-	clients := make(map[*Client]struct{})
-
-	type rateLimitData struct {
-		clients int
-		limiter *rate.Limiter
-	}
-	rateLimits := make(map[netip.Addr]*rateLimitData)
 
 	for {
 		select {
@@ -84,70 +88,80 @@ func (cm *clientManager) Run(ctx context.Context) {
 			return
 
 		case update := <-cm.broadcast:
-			if !rateLimits[update.src.Addr].limiter.Allow() {
-				update.src.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-				continue
-			}
-
-			log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.msg.Data.Index, update.msg.Data.Color, update.src.Addr)
-
-			err := cm.redisClient.SetRange(ctx, "pixels", int64(update.msg.Data.Index), update.msg.Data.Color).Err()
-			if err != nil {
-				log.Printf("error updating Redis: %v", err)
-				continue
-			}
-
-			msg := OutgoingMessage{Type: "update", Data: update.msg.Data, ClientCount: len(clients)}
-			jsonMsg, err := json.Marshal(msg)
-			if err != nil {
-				log.Printf("error marshaling json: %v", err)
-				continue
-			}
-
-			for client := range clients {
-				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-				if err != nil {
-					log.Printf("error sending message to client: %v", err)
-					client.Close()
-					delete(clients, client)
-				}
-			}
+			cm.send(ctx, update)
 
 		case r := <-cm.register:
-			client := r.client
-			limit := rateLimits[client.Addr]
-			if limit == nil {
-				limit = &rateLimitData{
-					clients: 1, limiter: rate.NewLimiter(rate.Every(time.Second), 5),
-				}
-				rateLimits[client.Addr] = limit
-				continue
-			}
-			if limit.clients >= 5 {
-				r.rsp <- errors.New("too many clients with IP")
-				continue
-			}
-			limit.clients++
-			clients[client] = struct{}{}
-
-			r.rsp <- nil
+			r.rsp <- cm.add(r.client)
 
 		case client := <-cm.unregister:
-			if _, ok := clients[client]; !ok {
-				continue
-			}
+			cm.remove(client)
 
-			delete(clients, client)
-			client.Close()
-
-			limit := rateLimits[client.Addr]
-			limit.clients--
-			if limit.clients <= 0 {
-				delete(rateLimits, client.Addr)
-			}
-
-		case cm.numclients <- len(clients):
+		case cm.numclients <- len(cm.clients):
 		}
+	}
+}
+
+func (cm *clientManager) send(ctx context.Context, update broadcast) {
+	if !cm.rateLimits[update.src.Addr].limiter.Allow() {
+		update.src.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
+		return
+	}
+
+	log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.msg.Data.Index, update.msg.Data.Color, update.src.Addr)
+
+	err := cm.redisClient.SetRange(ctx, "pixels", int64(update.msg.Data.Index), update.msg.Data.Color).Err()
+	if err != nil {
+		log.Printf("error updating Redis: %v", err)
+		return
+	}
+
+	msg := OutgoingMessage{Type: "update", Data: update.msg.Data, ClientCount: len(cm.clients)}
+	jsonMsg, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("error marshaling json: %v", err)
+		return
+	}
+
+	for client := range cm.clients {
+		err := client.WriteMessage(websocket.TextMessage, jsonMsg)
+		if err != nil {
+			log.Printf("error sending message to client: %v", err)
+			client.Close()
+			delete(cm.clients, client)
+		}
+	}
+}
+
+func (cm *clientManager) add(client *Client) error {
+	limit := cm.rateLimits[client.Addr]
+	if limit == nil {
+		limit = &rateLimitData{
+			clients: 1, limiter: rate.NewLimiter(rate.Every(time.Second), 5),
+		}
+		cm.rateLimits[client.Addr] = limit
+		return nil
+	}
+	if limit.clients >= 5 {
+		return errors.New("too many clients with IP")
+	}
+	limit.clients++
+	cm.clients[client] = struct{}{}
+
+	return nil
+}
+
+func (cm *clientManager) remove(client *Client) {
+	if _, ok := cm.clients[client]; !ok {
+		return
+	}
+
+	delete(cm.clients, client)
+	client.Close()
+
+	limit := cm.rateLimits[client.Addr]
+	limit.clients--
+	if limit.clients <= 0 {
+		delete(cm.rateLimits, client.Addr)
 	}
 }
 
