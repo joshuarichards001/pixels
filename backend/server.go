@@ -3,31 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"net/netip"
 	"os"
-	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
-	"golang.org/x/time/rate"
 )
 
 type Server struct {
-	broadcast  chan broadcast[IncomingMessage]
-	register   chan registration
-	unregister chan *Client
-	numclients chan int
-
+	clients     *clientManager
 	redisClient *redis.Client
-}
-
-type registration struct {
-	client *Client
-	rsp    chan error
 }
 
 func NewServer() *Server {
@@ -38,94 +25,13 @@ func NewServer() *Server {
 	})
 
 	return &Server{
-		broadcast:   make(chan broadcast[IncomingMessage]),
-		register:    make(chan registration),
-		unregister:  make(chan *Client),
-		numclients:  make(chan int),
+		clients:     newClientManager(rdb),
 		redisClient: rdb,
 	}
 }
 
 func (server *Server) Run(ctx context.Context) {
-	clients := make(map[*Client]struct{})
-
-	type rateLimitData struct {
-		clients int
-		limiter *rate.Limiter
-	}
-	rateLimits := make(map[netip.Addr]*rateLimitData)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		case update := <-server.broadcast:
-			if !rateLimits[update.src.Addr].limiter.Allow() {
-				update.src.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-				continue
-			}
-
-			log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.msg.Data.Index, update.msg.Data.Color, update.src.Addr)
-
-			err := server.redisClient.SetRange(ctx, "pixels", int64(update.msg.Data.Index), update.msg.Data.Color).Err()
-			if err != nil {
-				log.Printf("error updating Redis: %v", err)
-				continue
-			}
-
-			msg := OutgoingMessage{Type: "update", Data: update.msg.Data, ClientCount: len(clients)}
-			jsonMsg, err := json.Marshal(msg)
-			if err != nil {
-				log.Printf("error marshaling json: %v", err)
-				continue
-			}
-
-			for client := range clients {
-				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-				if err != nil {
-					log.Printf("error sending message to client: %v", err)
-					client.Close()
-					delete(clients, client)
-				}
-			}
-
-		case r := <-server.register:
-			client := r.client
-			limit := rateLimits[client.Addr]
-			if limit == nil {
-				limit = &rateLimitData{
-					clients: 1, limiter: rate.NewLimiter(rate.Every(time.Second), 5),
-				}
-				rateLimits[client.Addr] = limit
-				continue
-			}
-			if limit.clients >= 5 {
-				r.rsp <- errors.New("too many clients with IP")
-				continue
-			}
-			limit.clients++
-			clients[client] = struct{}{}
-
-			r.rsp <- nil
-
-		case client := <-server.unregister:
-			if _, ok := clients[client]; !ok {
-				continue
-			}
-
-			delete(clients, client)
-			client.Close()
-
-			limit := rateLimits[client.Addr]
-			limit.clients--
-			if limit.clients <= 0 {
-				delete(rateLimits, client.Addr)
-			}
-
-		case server.numclients <- len(clients):
-		}
-	}
+	server.clients.Run(ctx)
 }
 
 var upgrader = websocket.Upgrader{
@@ -167,17 +73,13 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		Addr: addr,
 	}
 
-	regrsp := make(chan error)
-	server.register <- registration{client: &client, rsp: regrsp}
-	err = <-regrsp
+	err = server.clients.Register(&client)
 	if err != nil {
 		client.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
 		client.Close()
 		return
 	}
-	defer func() {
-		server.unregister <- &client
-	}()
+	defer server.clients.Unregister(&client)
 
 	initialData, err := server.redisClient.Get(req.Context(), "pixels").Result()
 	if err != nil {
@@ -185,7 +87,7 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: <-server.numclients}
+	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: server.clients.Num()}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling initial JSON: %v", err)
@@ -221,16 +123,8 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 			continue
 		}
 
-		server.broadcast <- broadcast[IncomingMessage]{
-			src: &client,
-			msg: update,
-		}
+		server.clients.Broadcast(&client, update)
 	}
-}
-
-type broadcast[T any] struct {
-	src *Client
-	msg T
 }
 
 func (server *Server) handleGetPixels(rw http.ResponseWriter, req *http.Request) {
