@@ -76,9 +76,12 @@ func newClientManager(rc *redis.Client) *clientManager {
 	}
 }
 
+// Run runs the clientManager. It blocks until the manager exits,
+// which happens once the context is canceled. Calling this method
+// more than once, even after the manager has exited, will panic.
 func (cm *clientManager) Run(ctx context.Context) {
 	if cm.running.Swap(true) {
-		panic("manager has already been run")
+		panic(errors.New("manager has already been run"))
 	}
 	defer close(cm.done)
 
