@@ -52,6 +52,7 @@ h1 {
   width: calc(100% - 8px);
   height: calc(100% - 8px);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   background-color: rgba(216, 216, 216, 0.5);
 }
 
