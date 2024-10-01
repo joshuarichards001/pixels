@@ -13,6 +13,8 @@ export const handleWebsocket = (
   const loading = document.getElementById("loading");
   const captcha = document.getElementById("captcha");
   const connectMessage = document.getElementById("connect-message");
+  const disclaimer = document.getElementById("disclaimer");
+  const frostedGlass = document.getElementById("frosted-glass");
 
   socket.onopen = () => {
     console.log("WebSocket connection established");
@@ -38,6 +40,8 @@ export const handleWebsocket = (
       newPixelData = messageData.data;
       captcha.remove();
       connectMessage.remove();
+      disclaimer.remove();
+      frostedGlass.remove();
       canvas.style.display = "block";
     } else if (messageData.type === "update") {
       const pixelData = getPixelData();

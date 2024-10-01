@@ -44,6 +44,17 @@ h1 {
   display: inline-block;
 }
 
+.frosted-glass {
+  display: none;
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  backdrop-filter: blur(6px);
+  background-color: rgba(216, 216, 216, 0.5);
+}
+
 canvas {
   border: 4px solid black;
   cursor: crosshair;
@@ -73,6 +84,13 @@ canvas {
 
 .connect {
   background-color: #1d70a2;
+}
+
+.disclaimer {
+  background-color: #fbd755;
+  color: black;
+  top: 60px;
+  width: 270px;
 }
 
 .zoom-controls {

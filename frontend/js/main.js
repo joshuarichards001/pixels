@@ -17,6 +17,8 @@ window.onload = async () => {
   let pixelData = await response.text();
 
   document.getElementById("connect-message").style.display = "inline";
+  document.getElementById("disclaimer").style.display = "inline";
+  document.getElementById("frosted-glass").style.display = "inline";
 
   const getPixelData = () => pixelData;
   const setPixelData = (newPixelData) => {
