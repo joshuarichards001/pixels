@@ -1,10 +1,5 @@
 package main
 
-import (
-	"sync"
-	"time"
-)
-
 type InitialMessage struct {
 	Type        string `json:"type"`
 	Data        string `json:"data"`
@@ -25,10 +20,4 @@ type IncomingMessage struct {
 type UpdatedColor struct {
 	Index int    `json:"index"`
 	Color string `json:"color"`
-}
-
-type RateLimitData struct {
-	mu          sync.Mutex
-	timestamps  []time.Time
-	clientCount int
 }

@@ -7,21 +7,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/websocket"
 )
 
 type Server struct {
-	broadcast  chan IncomingMessage
-	register   chan *Client
-	unregister chan *Client
-	numclients chan int
-
+	clients     *clientManager
 	redisClient *redis.Client
-	rateLimits  sync.Map
 }
 
 func NewServer() *Server {
@@ -32,55 +25,13 @@ func NewServer() *Server {
 	})
 
 	return &Server{
-		broadcast:   make(chan IncomingMessage, 100000),
-		register:    make(chan *Client, 10000),
-		unregister:  make(chan *Client, 10000),
-		numclients:  make(chan int),
+		clients:     newClientManager(rdb),
 		redisClient: rdb,
 	}
 }
 
 func (server *Server) Run(ctx context.Context) {
-	clients := make(map[*Client]struct{})
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		case update := <-server.broadcast:
-			err := server.redisClient.SetRange(ctx, "pixels", int64(update.Data.Index), update.Data.Color).Err()
-			if err != nil {
-				log.Printf("error updating Redis: %v", err)
-				continue
-			}
-
-			msg := OutgoingMessage{Type: "update", Data: update.Data, ClientCount: len(clients)}
-			jsonMsg, err := json.Marshal(msg)
-			if err != nil {
-				log.Printf("error marshaling json: %v", err)
-				continue
-			}
-
-			for client := range clients {
-				err := client.WriteMessage(websocket.TextMessage, jsonMsg)
-				if err != nil {
-					log.Printf("error sending message to client: %v", err)
-					client.Close()
-					delete(clients, client)
-				}
-			}
-
-		case client := <-server.register:
-			clients[client] = struct{}{}
-
-		case client := <-server.unregister:
-			delete(clients, client)
-			client.Close()
-
-		case server.numclients <- len(clients):
-		}
-	}
+	server.clients.Run(ctx)
 }
 
 var upgrader = websocket.Upgrader{
@@ -111,28 +62,24 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		http.Error(rw, "could not open websocket connection", http.StatusInternalServerError)
 		return
 	}
-	client := NewClient(conn)
+	addr, ok := getIP(req, conn)
+	if !ok {
+		log.Printf("could not determine identifiable IP address for connection from %v", req.RemoteAddr)
+		http.Error(rw, "could not determine necessary information", http.StatusInternalServerError)
+		return
+	}
+	client := Client{
+		Conn: conn,
+		Addr: addr,
+	}
 
-	ip := getIP(req)
-	if !server.checkAndUpdateClientCount(ip, true) {
+	err = server.clients.Register(&client)
+	if err != nil {
 		client.WriteMessage(websocket.TextMessage, []byte("client limit exceeded"))
 		client.Close()
 		return
 	}
-
-	server.register <- client
-
-	defer func() {
-		server.unregister <- client
-		server.checkAndUpdateClientCount(ip, false)
-		client.Close()
-	}()
-
-	time.AfterFunc(30*time.Minute, func() {
-		server.unregister <- client
-		server.checkAndUpdateClientCount(ip, false)
-		client.Close()
-	})
+	defer server.clients.Unregister(&client)
 
 	initialData, err := server.redisClient.Get(req.Context(), "pixels").Result()
 	if err != nil {
@@ -140,7 +87,7 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 		return
 	}
 
-	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: <-server.numclients}
+	initialMsg := InitialMessage{Type: "initial", Data: initialData, ClientCount: server.clients.Num()}
 	jsonMsg, err := json.Marshal(initialMsg)
 	if err != nil {
 		log.Printf("error marshaling initial JSON: %v", err)
@@ -176,14 +123,7 @@ func (server *Server) handleConnections(rw http.ResponseWriter, req *http.Reques
 			continue
 		}
 
-		if !server.checkRateLimit(ip) {
-			client.WriteMessage(websocket.TextMessage, []byte("rate limit exceeded"))
-			continue
-		}
-
-		log.Printf("Pixel updated: index=%d, color=%s, ip=%s", update.Data.Index, update.Data.Color, ip)
-
-		server.broadcast <- update
+		server.clients.Broadcast(&client, update)
 	}
 }
 

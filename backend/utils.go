@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 )
 
@@ -70,14 +72,30 @@ func validateIncomingMessage(update IncomingMessage) error {
 	return nil
 }
 
-func getIP(r *http.Request) string {
+func getIP(r *http.Request, conn *websocket.Conn) (netip.Addr, bool) {
 	if ip := r.Header.Get("X-Real-Ip"); ip != "" {
-		return ip
+		addr, err := netip.ParseAddrPort(ip)
+		if err == nil {
+			return addr.Addr(), true
+		}
 	}
 
 	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
-		return strings.Split(ip, ",")[0]
+		first, _, _ := strings.Cut(ip, ",")
+		addr, err := netip.ParseAddrPort(first)
+		if err == nil {
+			return addr.Addr(), true
+		}
 	}
 
-	return r.RemoteAddr
+	if addrport, ok := conn.RemoteAddr().(interface{ AddrPort() netip.AddrPort }); ok {
+		return addrport.AddrPort().Addr(), true
+	}
+
+	addr, err := netip.ParseAddrPort(r.RemoteAddr)
+	if err == nil {
+		return addr.Addr(), true
+	}
+
+	return netip.Addr{}, false
 }
