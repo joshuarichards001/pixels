@@ -14,9 +14,9 @@ export const colorMap = {
 const production = true;
 
 export const websocketUrl = production
-  ? "wss://websocket.tenthousandpixels.com/ws"
+  ? "wss://pixels-backend.fly.dev/ws"
   : "ws://localhost:8080/ws";
 
 export const pixelsUrl = production
-  ? "https://websocket.tenthousandpixels.com/pixels"
+  ? "https://pixels-backend.fly.dev/pixels"
   : "http://localhost:8080/pixels";
